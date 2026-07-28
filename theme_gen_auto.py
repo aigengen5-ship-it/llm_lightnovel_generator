@@ -578,15 +578,16 @@ def theme_gen_auto(story_info: str, num_episodes: int = 10, log_fn=None) -> dict
     # 12-1. 에피소드 분할 범위 계산 (기-승-전-결, +1/-1 랜덤 변동)
     # =====================================================================
     # 기본 비율: 기-승 40%, 전 40%, 결 20% (4:4:2)
+    base_ending = random.randint(1,2)
     base_intro = int(num_episodes * 0.4)
     base_crisis = int(num_episodes * 0.4)
-    base_ending = num_episodes - base_intro - base_crisis
 
     # 각 범위에 +1/-1 랜덤 변동 적용 (최소 1 보장)
+    ending_episodes = 1
     intro_episodes = max(1, base_intro + random.choice([-1, 0, 1]))
     crisis_episodes = max(1, base_crisis + random.choice([-1, 0, 1]))
-    ending_episodes = num_episodes - intro_episodes - crisis_episodes
-    ending_episodes = max(1, ending_episodes)
+    if (ending_episodes + intro_episodes + crisis_episodes) > num_episodes:
+        crisis_episodes -= ending_episodes + intro_episodes + crisis_episodes - num_episodes
 
     # 범위 계산
     intro_start_ep = 1
