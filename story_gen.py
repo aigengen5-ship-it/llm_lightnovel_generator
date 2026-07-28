@@ -338,7 +338,7 @@ def episode_summary_gen(callback=None):
     """캐릭터 시트와 에피소드 리스트를 기반으로 OpenAI를 통해 상세 줄거리를 생성합니다.
     각 에피소드를 개별적으로 루프 돌며 생성하며, progression_array를 프롬프트에 포함합니다.
     각 에피소드는 기-승-전-결 구조로 출력됩니다.
-    API 요청/응답은 debug_api.log에 기록됩니다.
+    API 요청/응답은 debug_api_pre.log에 기록됩니다.
     """
     log_file = None
     try:
@@ -356,7 +356,7 @@ def episode_summary_gen(callback=None):
             config.episode_track[i] = False
 
         # 로그 파일 열기
-        log_file = open("debug_api.log", "w", encoding="utf-8")
+        log_file = open("debug_api_pre.log", "w", encoding="utf-8")
 
         def log(msg: str):
             log_file.write(msg + "\n")

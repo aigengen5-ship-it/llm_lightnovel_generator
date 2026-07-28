@@ -583,9 +583,9 @@ def theme_gen_auto(story_info: str, num_episodes: int = 10, log_fn=None) -> dict
     base_crisis = int(num_episodes * 0.4)
 
     # 각 범위에 +1/-1 랜덤 변동 적용 (최소 1 보장)
-    ending_episodes = 1
-    intro_episodes = max(1, base_intro + random.choice([-1, 0, 1]))
-    crisis_episodes = max(1, base_crisis + random.choice([-1, 0, 1]))
+    ending_episodes = random.randint(1,2)
+    intro_episodes = max(4, base_intro + random.choice([-1, 0, 1]))
+    crisis_episodes = max(5, base_crisis + random.choice([-1, 0, 1]))
     if (ending_episodes + intro_episodes + crisis_episodes) > num_episodes:
         crisis_episodes -= ending_episodes + intro_episodes + crisis_episodes - num_episodes
 

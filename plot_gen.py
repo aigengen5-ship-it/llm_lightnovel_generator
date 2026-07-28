@@ -443,8 +443,6 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
 
     resistance_positions = _compute_resistance_positions(total_episodes)
     theme_info = f"테마: {theme_msg}" if theme_msg else "(별도 테마 없음)"
-    if config.inc_flag == 1:
-        theme_info += "/근친상간의 배덕감과 천박함"
 
     breeds_info = ""
     jinshugai_info = ""
@@ -469,7 +467,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
 
     _log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log")
     os.makedirs(_log_dir, exist_ok=True)
-    log_file = open(os.path.join(_log_dir, "debug_api.log"), "a", encoding="utf-8")
+    log_file = open(os.path.join(_log_dir, "debug_api.log"), "w", encoding="utf-8")
     def log(msg):
         log_file.write(msg + "\n")
         log_file.flush()
@@ -477,12 +475,12 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
 
     # RAG Word 로드
     rag_word = "(단어 목록 없음)"
-    rag_word_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "rag_word.txt")
-    try:
-        with open(rag_word_path, "r", encoding="utf-8") as f:
-            rag_word = f.read().strip()
-    except FileNotFoundError:
-        pass
+    #rag_word_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "rag_word.txt")
+    #try:
+    #    with open(rag_word_path, "r", encoding="utf-8") as f:
+    #        rag_word = f.read().strip()
+    #except FileNotFoundError:
+    #    pass
     config.rag_word = rag_word
 
     # 타락 가이드 매핑

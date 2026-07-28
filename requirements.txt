@@ -9,3 +9,5 @@ prompt_toolkit>=3.0.0
 
 # YAML support
 PyYAML>=6.0
+
+textual
