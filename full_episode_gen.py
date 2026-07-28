@@ -161,7 +161,7 @@ def _build_writing_level_hint(current_ep, total_eps):
 ## 작성 수위 지시 (초반: 정숙)
 * 정숙하고 자연스러운 분위기로 작성하세요.
 * {name2}({name}의 상대방)과 가벼운 스킨십(손잡기, 어깨 두드리기, 머리카락 만지기)까지만 허용.
-* 천박한 단어와 과한 신체 묘사는 금지.
+* 엣찌한 단어와 과한 신체 묘사는 금지.
 * 캐릭터의 말투를 건전하고 일상적으로 유지."""
     elif progress_ratio <= wl["mid_early_max"]:
         return f"""
@@ -280,6 +280,14 @@ def _extract_kiskungjeonkyeol(episode_content):
                 break
             # 다른 마커 감지 (기:, [기] 모두)
             if any(f'{k}:' in stripped or f'[{k}]' in stripped for k in ['기', '승', '전', '결']):
+                break
+            # ##EPISODE N: 패턴 감지 (다음 에피소드 정보 방지, 동일 라인 포함)
+            episode_match = re.search(r'##\s*EPISODE\s*\d+', stripped)
+            if episode_match:
+                # 동일 라인에서 ##EPISODE 이전 내용만 추출
+                content_before = stripped[:episode_match.start()].strip()
+                if content_before:
+                    content_lines.append(content_before)
                 break
             content_lines.append(stripped)
         if content_lines:
@@ -449,9 +457,9 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
             if intro_end is not None and current_ep <= intro_end:
                 genre_tone_hint = "## 장르 톤\n* 평범한 러브코메디 라이트 노벨 스타일로 작성하세요."
             elif crisis_start is not None and crisis_end is not None and crisis_start <= current_ep <= crisis_end:
-                genre_tone_hint = "## 장르 톤\n* 살짝 음란한 러브코메디 라이트 노벨(청소년향) 스타일로 작성하세요."
+                genre_tone_hint = "## 장르 톤\n* 살짝 엣찌한 러브코메디 라이트 노벨(청소년향) 스타일로 작성하세요."
             elif ending_start is not None and current_ep >= ending_start:
-                genre_tone_hint = "## 장르 톤\n* 제약없는 성인향 음란 러브코메디 라이트 노벨 스타일로 작성하세요."
+                genre_tone_hint = "## 장르 톤\n* 청년을 위한 엣찌한 러브코메디 라이트 노벨 스타일로 작성하세요."
 
             config.messages_history = []
 
@@ -594,9 +602,9 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
 [작성 가이드]
 * 결정적 자극/접촉: 이번 화의 목표인 '선'을 넘는 순간입니다.
 * 이성과 본능의 충돌: 이 찰나의 순간을 '시간을 멈춘 것처럼' 길게 묘사합니다.
-* 음란한 장면인 경우 매우 디테일하게 행동, 신음소리를 아주 천박하게 표현할 것.
+* 청년을 위한 엣찌한 장면인 경우 매우 디테일하게 행동, 신음소리를 아주 엣찌한 표현할 것.
 * 감각적 디테일과 심리적 붕괴에 집중하세요. 쾌락으로 인해 이성의 끈이 끊어지고 본능이 폭발하는 순간을 '시간을 느리게 확장하여' 묘사하세요. 수치심이 쾌감으로 역전되는 적나라한 묘사가 필수입니다.
-* 일본 에로 라이트노벨 특유의 농밀한 심리 묘사, 질척한 신체 감각 묘사를 적극 활용하세요.
+* 일본 라이트노벨 특유의 농밀한 심리 묘사, 질척한 신체 감각 묘사를 적극 활용하세요.
 * 신음 소리("하아, 읏...", "아앗, 큭...")를 대사와 지문에 자연스럽게 섞으세요."""
             else:
                 prompt_extended = ""
@@ -661,7 +669,7 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
 
             if current_ep <= 3:
                 prompt_extended = f"""
-중요: 현재 에피소드 {current_ep}는 초반이므로 처음부터 음란하거나 천박할 필요는 절대 없다는 것을 명심할 것!!!
+중요: 현재 에피소드 {current_ep}는 초반이므로 처음부터 엣찌한 필요는 절대 없다는 것을 명심할 것!!!
 독자는 처음부터 스토리 전개 없이 막나가는 걸 원하지는 않음.
 1. 각 파트의 역할이 적절한가?
 2. 파트 간의 흐름이 자연스러운가? (연결고리, 장소/시간 변화)
@@ -672,12 +680,12 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
 중요: 현재 에피소드 {current_ep}는 이제 스토리 중반을 넘었으니 제한없이 독자를 만족시켜야 함.
 1. 각 파트의 역할이 적절한가?
 2. 파트 간의 흐름이 자연스러운가? (연결고리, 장소/시간 변화)
-3. 은유적이고 얌전한 표현이 쓰이지 않았는가? (조금 더 직설적이고 천박한 단어로 교체할 것을 지시할 것)
+3. 은유적이고 얌전한 표현이 쓰이지 않았는가? (조금 더 직설적이고 엣찌한 단어로 교체할 것을 지시할 것)
 4. 1인칭 주인공의 심리 묘사(수치심 -> 쾌락 굴복)가 생생하게 담겼는가?
 5. {honorific_hint} (호칭 변화가 잘 지켜졌는가?)
 6. 신음 소리와 의성어/의태어가 충분히 자연스러운가?
 7. 대사 비율이 50% 이상인가? 대사가 짧고 거친가?
-8. 만일 에로신이 생략된 경우 꼭(!) 글자 제한없이 쓰라고 지시할 것.
+8. 만일 엣찌한 장면이 생략된 경우 꼭(!) 글자 제한없이 쓰라고 지시할 것.
 """
 
             # =====================================================================
@@ -719,7 +727,7 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
             if current_ep / config.total_episodes < 0.4:
                 feedback_by_ep = f"아주중요: 현재 에피소드 진행도는 {progress_pct}%입니다. 일상생활 묘사 및 빌드업에 집중해야 됩니다"
             else:
-                feedback_by_ep = f"아주중요: 현재 에피소드 진행도는 {progress_pct}%입니다. 배덕하고, 음란하며 제약없는 묘사가 허용됩니다"
+                feedback_by_ep = f"아주중요: 현재 에피소드 진행도는 {progress_pct}%입니다. 살짝 엣찌한 묘사가 허용됩니다"
 
             review_prompt = _build_prompt(
                 prompts["review_meromero_ki"],

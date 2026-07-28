@@ -28,6 +28,9 @@ episode_full_track = [False for _ in range(total_episodes)]
 episode_protagonist_sheets = []
 episode_partner_sheets = []
 
+# Episode별 스냅샷 (character_sheet_extended에서 사용)
+episode_snapshots = []
+
 # Character A
 name = ""
 sex = ""

@@ -707,6 +707,83 @@ def load_progress_state() -> dict:
         return {}
 
 
+def load_episodes_from_progress(hash_code: str) -> list:
+    """progress/ep{N:02d}_{hash}.txt 파일에서 에피소드 내용(기/승/전/결)을 로드합니다.
+
+    Args:
+        hash_code: plot_hash 코드
+
+    Returns:
+        에피소드 내용 리스트 (기/승/전/결 추출된 텍스트)
+    """
+    if not hash_code or not os.path.exists(PROGRESS_DIR):
+        return []
+
+    total_eps = getattr(config, 'total_episodes', 10)
+    episode_contents = []
+
+    for i in range(total_eps):
+        ep_num = i + 1
+        ep_filepath = os.path.join(PROGRESS_DIR, f"ep{ep_num:02d}_{hash_code}.txt")
+
+        if not os.path.exists(ep_filepath):
+            episode_contents.append("")
+            continue
+
+        try:
+            with open(ep_filepath, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # --- 에피소드 내용 --- 섹션 추출
+            start_marker = "--- 에피소드 내용 ---"
+            end_marker = "--- 주인공 캐릭터 시트 ---"
+
+            if start_marker in content and end_marker in content:
+                start_idx = content.index(start_marker) + len(start_marker)
+                end_idx = content.index(end_marker)
+                ep_text = content[start_idx:end_idx].strip()
+            else:
+                ep_text = content
+
+            # 기/승/전/결 추출
+            sections = {'기': '', '승': '', '전': '', '결': ''}
+            for key in ['기', '승', '전', '결']:
+                marker = f'{key}:'
+                if marker in ep_text:
+                    idx = ep_text.index(marker) + len(marker)
+                    rest = ep_text[idx:].strip()
+                    lines = rest.split('\n')
+                    content_lines = []
+                    for line in lines:
+                        stripped = line.strip()
+                        if not stripped:
+                            break
+                        # 다른 마커 감지
+                        if any(f'{k}:' in stripped for k in ['기', '승', '전', '결']):
+                            break
+                        # ##EPISODE N: 패턴 감지
+                        if re.match(r'##\s*EPISODE\s*\d+', stripped):
+                            break
+                        content_lines.append(stripped)
+                    if content_lines:
+                        sections[key] = ' '.join(content_lines)
+
+            # 기/승/전/결 형식으로 재조립
+            result_parts = []
+            for key in ['기', '승', '전', '결']:
+                if sections[key]:
+                    result_parts.append(f"{key}:\n{sections[key]}")
+
+            episode_contents.append('\n\n'.join(result_parts))
+            logger.info("에피소드 %d 로드 완료 (hash=%s)", ep_num, hash_code)
+
+        except Exception as e:
+            logger.error("에피소드 %d 로드 실패: %s", ep_num, e)
+            episode_contents.append("")
+
+    return episode_contents
+
+
 def verify_hash_match(hash_code: str) -> bool:
     """hash code가 현재 config와 일치하는지 확인합니다.
 

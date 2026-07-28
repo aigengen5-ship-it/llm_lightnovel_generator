@@ -16,7 +16,7 @@ from textual import work
 from textual.app import App, ComposeResult
 from textual.screen import ModalScreen
 from textual.containers import Horizontal, Vertical
-from textual.widgets import OptionList, Static, TextArea, Label, Button
+from textual.widgets import OptionList, Static, TextArea, Label, Button, Input
 from textual.widgets.option_list import Option
 
 # 로거 초기화
@@ -78,6 +78,184 @@ class QuitConfirmScreen(ModalScreen[bool]):
 
 
 # =============================================================================
+# 3. 스토리 생성 에피소드 선택 모달
+# =============================================================================
+class EpisodeSelectScreen(ModalScreen[int]):
+    """스토리 생성 시 에피소드 범위 선택 모달 (int: ep_num 반환)"""
+    CSS = """
+    EpisodeSelectScreen {
+        align: center middle;
+        background: rgba(0, 0, 0, 0.6);
+    }
+    
+    #ep-container {
+        width: 60;
+        height: 16;
+        padding: 1 2;
+        border: round #00ff00;
+        background: $surface;
+    }
+    
+    #ep-title {
+        width: 100%;
+        height: 2;
+        content-align: center middle;
+        color: #00ff00;
+        text-style: bold;
+    }
+    
+    #ep-status {
+        width: 100%;
+        height: 4;
+        padding: 0 1;
+        color: white;
+    }
+    
+    #ep-input-row {
+        width: 100%;
+        height: 3;
+        align-horizontal: center;
+    }
+    
+    #ep-input-label {
+        width: 15;
+        height: 1;
+        content-align: right middle;
+        color: #ffff00;
+    }
+    
+    #ep-input {
+        width: 15;
+        height: 1;
+    }
+    
+    #ep-input-hint {
+        width: 25;
+        height: 1;
+        content-align: left middle;
+        color: #888888;
+    }
+    
+    #ep-buttons {
+        width: 100%;
+        height: 3;
+        align-horizontal: center;
+    }
+    
+    #ep-help {
+        width: 100%;
+        height: 2;
+        content-align: center middle;
+        color: #888888;
+    }
+    
+    Button {
+        margin: 0 1;
+    }
+    """
+
+    def __init__(self, total_episodes: int, episode_full_track: list) -> None:
+        super().__init__()
+        self.total_episodes = total_episodes
+        self.episode_full_track = episode_full_track
+
+    def compose(self) -> ComposeResult:
+        # 생성된 에피소드 상태 표시
+        status_lines = []
+        for i in range(self.total_episodes):
+            ep_num = i + 1
+            status = "✅" if self.episode_full_track[i] else "⬜"
+            status_lines.append(f"{status} EP {ep_num}")
+            if (i + 1) % 4 == 0 and i < self.total_episodes - 1:
+                status_lines.append("")  # 4개마다 줄바꿈
+
+        completed = sum(1 for t in self.episode_full_track if t)
+        incomplete = self.total_episodes - completed
+        status_text = f"생성 완료: {completed}개 | 미생성: {incomplete}개\n\n" + "  ".join(status_lines)
+
+        with Vertical(id="ep-container"):
+            yield Static("📖 스토리 생성 - 에피소드 범위 선택", id="ep-title")
+            yield Static(status_text, id="ep-status")
+            with Horizontal(id="ep-input-row"):
+                yield Static("EP 번호:", id="ep-input-label")
+                yield Input(placeholder=f"1~{self.total_episodes}", id="ep-input")
+                yield Static(f"(숫자 입력 후 Enter)", id="ep-input-hint")
+            with Horizontal(id="ep-buttons"):
+                yield Button("전체 재생성", id="ep-all", variant="primary")
+                yield Button("이어서 생성", id="ep-continue", variant="default")
+                yield Button("선택 EP 생성", id="ep-single", variant="success")
+                yield Button("취소", id="ep-cancel", variant="error")
+            yield Static("[1]: 전체 | [2]: 이어서 | [3]: 선택 EP | [Esc]: 취소", id="ep-help")
+
+    def on_mount(self) -> None:
+        # 모달 열릴 때 입력창에 포커스
+        self.query_one("#ep-input", Input).focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "ep-all":
+            self.dismiss(0)  # ep_num=0: 전체 재생성
+        elif event.button.id == "ep-continue":
+            self.dismiss(-1)  # ep_num=-1: 이어서 생성
+        elif event.button.id == "ep-single":
+            input_widget = self.query_one("#ep-input", Input)
+            value = input_widget.value.strip()
+            if value:
+                try:
+                    ep_num = int(value)
+                    if 1 <= ep_num <= self.total_episodes:
+                        self.dismiss(ep_num)  # ep_num: 선택된 에피소드
+                    else:
+                        self.call_from_thread(self._update_ui, status_text=f"상태: 1~{self.total_episodes} 사이를 입력하세요")
+                except ValueError:
+                    self.call_from_thread(self._update_ui, status_text="상태: 숫자를 입력하세요")
+        elif event.button.id == "ep-cancel":
+            self.dismiss(None)  # 취소
+
+    def on_key(self, event) -> None:
+        input_widget = self.query_one("#ep-input", Input)
+        # 입력창에 포커스 있을 때는 숫자 키 전달
+        if input_widget.has_focus:
+            if event.key == "enter":
+                input_widget.add_class("submitted")
+                self.on_input_submitted(Input.Submitted(input_widget, input_widget.value))
+                return
+            if event.key == "escape":
+                self.dismiss(None)
+                return
+            return  # 숫자 입력은 입력창에 전달
+
+        if event.key == "1":
+            self.dismiss(0)
+        elif event.key == "2":
+            self.dismiss(-1)
+        elif event.key == "3":
+            # 입력창으로 포커스 이동
+            input_widget.focus()
+        elif event.key == "escape":
+            self.dismiss(None)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        # 입력값 검증 (숫자만 허용)
+        value = event.value.strip()
+        if value:
+            if not value.isdigit():
+                self.query_one("#ep-input", Input).value = value[0]
+            elif int(value) > self.total_episodes:
+                self.query_one("#ep-input", Input).value = str(self.total_episodes)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        # Enter 키 누를 때 선택 EP 생성 처리
+        value = event.value.strip()
+        if value:
+            try:
+                ep_num = int(value)
+                if 1 <= ep_num <= self.total_episodes:
+                    self.dismiss(ep_num)
+            except ValueError:
+                pass
+
+
+# =============================================================================
 # 2. 메인 TUI 애플리케이션
 # =============================================================================
 class FourPaneApp(App):
@@ -94,6 +272,7 @@ class FourPaneApp(App):
         with Horizontal(id="main-container"):
             with Vertical(id="left-pane"):
                 yield OptionList(
+                    Option("0. 설정 초기화 (Reset Config)", id="reset_config"),
                     Option("1. 플롯 생성 (Step1: 테마)", id="generate_plot"),
                     Option("2. 플롯 생성 (Step2: 가이드)", id="generate_guides"),
                     Option("3. 소설 주인공 설정 (Protagonist)", id="protagonist_setup"),
@@ -119,6 +298,45 @@ class FourPaneApp(App):
 
     def _show_quit_dialog(self) -> None:
         self.push_screen(QuitConfirmScreen(), lambda confirmed: self.exit() if confirmed else None)
+
+    def _check_existing_episodes(self) -> list:
+        """progress/ep{N:02d}_*.txt 또는 result/episode_{N:02d}.md 파일 존재 여부 확인"""
+        import glob
+        episode_full_track = []
+        plot_hash = getattr(config, 'plot_hash', '')
+        progress_dir = os.path.join(os.path.dirname(__file__), "progress")
+        result_dir = os.path.join(os.path.dirname(__file__), "result")
+
+        for i in range(config.total_episodes):
+            ep_num = i + 1
+            # progress/ep{N:02d}_{hash}.txt 또는 progress/ep{N:02d}_*.txt 체크
+            progress_file = None
+            if plot_hash:
+                progress_file = os.path.join(progress_dir, f"ep{ep_num:02d}_{plot_hash}.txt")
+            if not progress_file or not os.path.exists(progress_file):
+                # hash 없이 패턴 매칭
+                pattern = os.path.join(progress_dir, f"ep{ep_num:02d}_*.txt")
+                matches = glob.glob(pattern)
+                progress_file = matches[0] if matches else None
+
+            # result/episode_{N:02d}.md 체크
+            result_file = os.path.join(result_dir, f"episode_{ep_num:02d}.md")
+
+            exists = (progress_file and os.path.exists(progress_file)) or os.path.exists(result_file)
+            episode_full_track.append(exists)
+
+        return episode_full_track
+
+    def _show_episode_select_dialog(self, episode_full_track: list) -> None:
+        """에피소드 선택 모달 표시"""
+        self.push_screen(
+            EpisodeSelectScreen(config.total_episodes, episode_full_track),
+            lambda ep_num: self._start_story_gen(ep_num) if ep_num is not None else None
+        )
+
+    def _start_story_gen(self, ep_num: int) -> None:
+        """선택된 ep_num으로 스토리 생성 워커 시작"""
+        self._worker_generate_story(ep_num=ep_num)
 
     def on_mount(self) -> None:
         self.query_one("#menu").border_title = "메뉴 (Menu)"
@@ -197,6 +415,39 @@ class FourPaneApp(App):
     @work(thread=True)
     def _worker_init(self) -> None:
         try:
+            # 기존 progress 상태 로드 (plot_hash 복구)
+            progress_state = llm_novel_gui_func.load_progress_state()
+            if progress_state:
+                saved_hash = progress_state.get("plot_hash", "")
+                if saved_hash:
+                    config.plot_hash = saved_hash
+
+                    # 기존 에피소드 내용 로드 (기/승/전/결)
+                    episode_contents = llm_novel_gui_func.load_episodes_from_progress(saved_hash)
+                    loaded_count = 0
+                    if episode_contents:
+                        for i in range(min(len(episode_contents), len(config.episode_content))):
+                            if episode_contents[i]:
+                                config.episode_content[i] = episode_contents[i]
+                                config.episode_track[i] = True
+                                loaded_count += 1
+
+                    # 복구 결과 표시
+                    restore_msg = f"=== 이전 세션 복구 ===\n"
+                    restore_msg += f"Hash: {saved_hash}\n"
+                    restore_msg += f"주인공: {progress_state.get('name', 'N/A')} ({progress_state.get('age', 'N/A')}세, {progress_state.get('job', 'N/A')})\n"
+                    restore_msg += f"상대방: {progress_state.get('name2', 'N/A')} ({progress_state.get('age2', 'N/A')}세, {progress_state.get('job2', 'N/A')})\n"
+                    restore_msg += f"에피소드: {loaded_count}/{len(episode_contents)}개 로드됨\n\n"
+
+                    character_setup.random_setup_all()
+                    prog_msg = self._generate_and_parse_progression()
+                    init_msg = f"[plot_hash: {config.plot_hash}]\n\n{restore_msg}{prog_msg}"
+                    if config.selected_jinshugai_id is not None:
+                        init_msg = f"[진수개 ID 지정됨: {config.selected_jinshugai_id}]\n\n" + init_msg
+                    self.call_from_thread(self._update_ui, editor_text=init_msg, status_text=f"상태: 복구 완료 (에피소드 {loaded_count}개)", readonly=True)
+                    return
+
+            # 새 세션
             character_setup.random_setup_all()
             prog_msg = self._generate_and_parse_progression()
             init_msg = f"시스템 준비 완료. 메뉴에서 항목을 선택하세요.\n\n{prog_msg}"
@@ -215,6 +466,7 @@ class FourPaneApp(App):
         option_id = event.option.id
 
         descriptions = {
+            "reset_config": "모든 설정을 초기화합니다.\nprogress/ 디렉토리 삭제\n+ 설정값 리셋",
             "generate_plot": "[Step1] 테마 생성 LLM 호출\n직업/나이/관계/트리거 설정\n+ 테마 생성 (약 1-2분)",
             "generate_guides": "[Step2] 가이드 생성 LLM 호출\n기-승-전-결 가이드 생성\n+ Agent Review (약 3-5분)",
             "protagonist_setup": "주인공 캐릭터 시트를 표시합니다.",
@@ -238,7 +490,17 @@ class FourPaneApp(App):
         self._interrupt_flag = False
         self._update_ui(editor_text="⏳ 작업 시작... 잠시 기다려주세요.", status_text="상태: 작업 시작...", readonly=True)
 
+        # 7번 메뉴: 기존 에피소드가 있으면 모달 표시
+        if option_id == "generate_story":
+            # progress/ep{N:02d}_{hash}.txt 또는 result/episode_{N:02d}.md 파일 존재 여부 체크
+            episode_full_track = self._check_existing_episodes()
+            has_existing = any(episode_full_track)
+            if has_existing:
+                self._show_episode_select_dialog(episode_full_track)
+                return
+
         worker_map = {
+            "reset_config": self._worker_reset_config,
             "generate_plot": self._worker_generate_plot_step1,
             "generate_guides": self._worker_generate_plot_step2,
             "protagonist_setup": self._worker_protagonist_setup,
@@ -256,6 +518,31 @@ class FourPaneApp(App):
     # -------------------------------------------------------------------------
     # 백그라운드 워커 메서드들 (완료 시 _finish_worker 일괄 사용)
     # -------------------------------------------------------------------------
+    @work(thread=True, exclusive=True, group="llm_work")
+    def _worker_reset_config(self) -> None:
+        """0번 메뉴: 설정 초기화"""
+        try:
+            # progress/ 디렉토리 삭제
+            cleared = llm_novel_gui_func.clear_progress_directory()
+            # 설정값 리셋
+            llm_novel_gui_func.reset_config_state()
+            # 에피소드 내용 초기화
+            for i in range(config.total_episodes):
+                config.episode_content[i] = ""
+                config.episode_track[i] = False
+                config.episode_full_content[i] = ""
+                config.episode_full_track[i] = False
+
+            result_msg = f"=== 설정 초기화 완료 ===\n\n"
+            result_msg += f"- progress/ 파일 {cleared}개 삭제됨\n"
+            result_msg += f"- 설정값 리셋됨\n"
+            result_msg += f"- 에피소드 내용 초기화됨\n\n"
+            result_msg += f"이제 1번 메뉴부터 다시 시작하세요."
+
+            self.call_from_thread(self._finish_worker, editor_text=result_msg, status_msg="설정 초기화 완료", readonly=True)
+        except Exception as e:
+            self.call_from_thread(self._finish_worker, editor_text=f"초기화 오류: {e}", status_msg="초기화 오류")
+
     @work(thread=True, exclusive=True, group="llm_work")
     def _worker_generate_plot_step1(self) -> None:
         progress_log = []
@@ -413,7 +700,7 @@ class FourPaneApp(App):
             self.call_from_thread(self._finish_worker, editor_text=f"생성 및 보완 중 오류: {e}", status_msg="오류 발생")
 
     @work(thread=True, exclusive=True, group="llm_work")
-    def _worker_generate_story(self) -> None:
+    def _worker_generate_story(self, ep_num: int = 0) -> None:
         self.call_from_thread(self._start_llm_animation, "상태: 스토리 생성 중")
         progress_log = []
         def story_callback(response_text: str, info: dict):
@@ -424,7 +711,9 @@ class FourPaneApp(App):
 
         try:
             import full_episode_gen
-            result = full_episode_gen.full_episode_gen(ep_num=0, callback=story_callback)
+            mode_text = "전체 재생성" if ep_num == 0 else "이어서 생성" if ep_num == -1 else f"EP {ep_num} 단일 생성"
+            progress_log.append(f"[모드] {mode_text} (ep_num={ep_num})")
+            result = full_episode_gen.full_episode_gen(ep_num=ep_num, callback=story_callback)
             table = llm_novel_gui_func.build_episode_full_track_table()
             out_txt = f"{table}\n\n[최근 로그]\n" + "\n".join(progress_log[-20:])
 
