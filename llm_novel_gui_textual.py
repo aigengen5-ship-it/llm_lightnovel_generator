@@ -127,6 +127,7 @@ class FourPaneApp(App):
 
         self.query_one("#menu", OptionList).focus()
         self._interrupt_flag = False
+        self._anim_running = False  # 애니메이션 중단 플래그 초기화
 
         # CLI 인자 파싱 간결화
         cmd_args = {"id": None, "inc_flag": None, "job": None, "job2": None}
@@ -158,9 +159,10 @@ class FourPaneApp(App):
     def _finish_worker(self, editor_text: str | None = None, status_msg: str = "", readonly: bool = True) -> None:
         """워커 완료 시 애니메이션 정지, 타임스탬프 상태창 업데이트 및 메뉴 포커스 처리"""
         self.workers.cancel_group(self, "_animate_status")
+        self._anim_running = False  # 애니메이션 중단 플래그
         now = datetime.datetime.now().strftime("%H:%M:%S")
         final_status = f"상태: [{now}] {status_msg}" if status_msg else "상태: 완료"
-        
+
         self._update_ui(editor_text=editor_text, status_text=final_status, readonly=readonly)
         self.query_one("#menu", OptionList).focus()
 
@@ -169,10 +171,13 @@ class FourPaneApp(App):
         import time
         while True:
             for dots in [".", "..", "...", "....", "....."]:
+                if not getattr(self, "_anim_running", True):
+                    return
                 self.call_from_thread(self._update_ui, status_text=f"{base_text}{dots}")
                 time.sleep(0.3)
 
     def _start_llm_animation(self, base_text: str = "상태: LLM 동작중") -> None:
+        self._anim_running = True  # 애니메이션 시작 플래그
         self._animate_status(base_text)
 
     def _generate_and_parse_progression(self) -> str:
