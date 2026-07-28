@@ -1,0 +1,73 @@
+#face
+round face, huge eyes, large eyes, tareme, small nose,
+fresh and natural facial features, large expressive eyes, wide-eyed, bright pupils,
+slender face shape, sharp chin, cool and narrowed eyes, long detailed eyelashes, tsurime, slit pupils,
+seductive heavy eyelids, moist and sparkling eyes, elegant facial features, half-closed eyes, sparkling eyes,
+confident and sharp expression, defined jawline, elegant almond-shaped eyes, tsurime, sharp eyes,
+gentle facial contour, warm and kind eyes, subtle blush on cheeks, tareme, soft eyes,
+slender face, narrow eyes, defined eyelashes, long eyelashes, heavy eyelids, seductive eyes, jitome, half-closed eyes,
+soft cheeks, relaxed face, sleepy expression, half-closed eyes, tareme, drooping eyes, light blush,
+playful face, smug smile, confident look, jitome, half-closed eyes, looking at viewer,
+delicate face, sad expression, quivering lips, tearing, watery eyes, crying with eyes open, red eyes,
+symmetrical face, porcelain skin, expressionless, blank stare, empty eyes, lifeless eyes,
+round face, parted lips, heavily flushed face, wide-eyed, dilated pupils, sparkling eyes, blinking,
+mature female, defined cheekbones, beauty mark, graceful expression, narrowed eyes, long eyelashes, tsurime, eyeliner,
+soft features, heavily flushed cheeks, avoiding eye contact, embarrassed, looking away, tareme, watery eyes, shy,
+short face, bright smile, energetic expression, wide-eyed, star-shaped pupils, bright pupils, glowing eyes
+#hip_size
+slim_hips
+wide_hips
+#body_size
+loli,child, aged down
+loli,aged down
+loli,slender,
+petite, petite body
+skinny, petite body
+slender, slender body
+slender,
+thin, slim,
+young, youthful appearance,
+young, youthful appearance,
+young, youthful appearance,
+curvy,
+plump,
+milf,slender,
+milf,aged up, slender
+milf,aged up
+mature female, milf,mom, aged up,curvy
+#breasts_special
+NONE
+asymmetrical_breasts
+bouncing_breasts
+breasts_apart
+hanging_breasts
+perky_breasts
+sagging_breasts
+unaligned_breasts
+#breasts_size
+flat_chest
+small_breasts
+medium_breasts
+large_breasts
+huge_breasts
+massive_breasts
+#makeup
+NONE
+applying_makeup
+eyeshadow
+eyeliner
+mascara
+rouge=(makeup)
+lipstick
+lipgloss
+lip_balm
+#heart
+NONE
+heart shaped_pupils
+heart shaped_pupils, hearts
+#piercing
+NONE
+tongue_piercing
+nose_piercing
+ear_piercing
+collarbone piercing

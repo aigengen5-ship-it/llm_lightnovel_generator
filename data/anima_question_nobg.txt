@@ -1,0 +1,24 @@
+Here is a prompt template which describes [NAME]'s appearance and execute orders. Please remember these rules to update prompt.
+1) After executing whole order, print prompt only with same sentence style.
+2) Use line break to keep same output style as original.
+3) To split new prompt, add ##PROMPT## header at the start/end of new prompt. So there will be two '##PROMPT##' header.
+4) mention background or location. Leave it white background.
+* Here is an output example.
+##PROMPT##
+She(or He) has a blue.....
+Her face...
+##PROMPT##
+
+** Current prompt **
+[PROMPT]
+
+1) Find and replace the variable '[WORDS]' based on [NAME]'s inner thought in English 2~3 words only. Never change other words in this line. 
+(Do not use [NAME2]'s name directly, use 'You')
+2) Update [NAME]'s face(hair style, hair color, makeup, eye shape, eye color, emotion and other tags) in line [LINE_NUM]. Refer to [NAME]'s character sheet and below face tags and incorporate them into the sentences.
+face tags: [FACE_TAG]
+3) Update appearance(clothes) in line 4. Refer to [NAME]'s character sheet and to the Danbooru tags listed below and incorporate them into the sentences.
+clothes tags: [CLOTHES_TAG]
+4) Update [NAME]'s body style, skin color in line 5. Refer to [NAME]'s character sheet and to the Danbooru tags listed below and incorporate them into the sentences.
+body tags: [BODY_TAG]
+5) Update [NAME]'s exposed level in line 6. Refer to [NAME]'s character sheet and to the Danbooru tags(body tags and exposed tags) and incorporate them into the sentences.
+exposed tags: [EXPOSED_TAG]

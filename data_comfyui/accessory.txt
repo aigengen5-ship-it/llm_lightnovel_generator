@@ -1,0 +1,11 @@
+no_accessories
+wristwatch
+stud_earrings
+cross_necklace
+simple_necklace
+modest_ring
+pendant
+scarf
+frilled_collar
+lace_gloves
+loose_socks

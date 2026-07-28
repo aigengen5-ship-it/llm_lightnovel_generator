@@ -1,0 +1,100 @@
+기본 네이비: 남색 블레이저, 흰색 셔츠, 회색 주름치마, 빨간 넥타이 `navy_blazer, grey_skirt, red_necktie`
+엠블럼 장식: 가슴에 학교 마크가 있는 남색 블레이저 `emblem_blazer, school_crest`
+목도리와 장갑: 겨울 등교길, 두꺼운 목도리와 장갑 `thick_scarf, gloves`
+금장 단추: 금색 단추가 달린 검은 블레이저, 붉은 체크 치마 `gold_button_blazer, red_plaid_skirt`
+차이나 칼라: 차이나 칼라 블레이저, 긴 바지 `mandarin_collar_blazer, long_pants`
+스트라이프: 세로 줄무늬가 얇게 들어간 블레이저 세트 `pinstripe_blazer, pinstripe_skirt`
+화이트 재킷: 흰색 블레이저, 남색 치마, 파란색 넥타이 `white_blazer, navy_skirt, blue_tie`
+쓰리피스: 블레이저, 조끼, 치마가 같은 색인 정장 스타일 `three_piece_uniform, matching_vest`
+남학교 스타일(여학생 착용): 헐렁한 블레이저, 넥타이, 슬랙스 `loose_blazer, slacks, boyish_style`
+영국 사립학교: 트위드 소재 블레이저, 긴 체크 치마 `tweed_blazer, long_plaid_skirt`
+벨트 재킷: 허리 벨트가 있는 자켓형 교복 `belted_jacket_uniform`
+노카라 재킷: 칼라가 없는 라운드넥 재킷, 블라우스 리본 강조 `collarless_jacket, big_ribbon`
+베이지 톤: 베이지색 블레이저, 갈색 체크 치마, 갈색 리본 `beige_blazer, brown_plaid_skirt, ribbon`
+배색 칼라: 칼라 부분만 다른 색인 블레이저 `contrast_collar_blazer`
+전통 네이비: 긴팔 남색 세일러복, 빨간 스카프, 무릎 길이 치마 `navy_sailor_uniform, red_scarf, knee_length_skirt`
+하복 화이트: 흰색 반팔 세일러복, 남색 칼라, 파란 리본 `white_sailor_top, navy_collar, blue_ribbon`
+그레이 세일러: 회색 세일러복 상하의, 검은색 스카프 `grey_sailor_uniform, black_scarf`
+블랙 세일러: 올 블랙 세일러복, 흰색 라인, 긴 치마 `black_sailor_uniform, white_lines, long_skirt`
+원피스 세일러: 상하의가 연결된 세일러 원피스, 허리 벨트 `sailor_one_piece_dress, belt`
+가디건 매치: 세일러복 위에 헐렁한 베이지 가디건 `sailor_uniform, beige_cardigan`
+후드 세일러: 세일러 칼라가 달린 후드 집업 스타일 `sailor_collar_hoodie`
+긴 치마(스케반): 발목까지 오는 아주 긴 세일러 치마 `sukeban_skirt, long_sailor_skirt`
+파스텔 톤: 연한 분홍색 세일러복, 흰색 치마 `pastel_pink_sailor, white_skirt`
+그레이 톤: 회색 블레이저, 검은색 조끼, 흰색 셔츠, 검은색 치마 `grey_blazer, black_vest, black_skirt`
+하늘색 세일러: 하늘색 칼라, 흰색 상의, 하늘색 치마 `light_blue_sailor_uniform`
+더블 라인: 칼라에 두 줄 라인이 들어간 클래식 디자인 `two_stripe_collar`
+넥타이 세일러: 리본 대신 넥타이를 맨 세일러복 `sailor_uniform_with_tie`
+체크 칼라: 세일러 칼라가 체크무늬인 디자인 `plaid_collar_sailor`
+겨울 세일러: 두꺼운 울 소재의 긴팔 세일러복 `winter_sailor_uniform`
+앞트임 세일러: 지퍼나 단추로 앞을 여미는 세일러 재킷 `front_zip_sailor`
+베이지 가디건: 흰 셔츠 위에 넉넉한 베이지 가디건 `beige_cardigan, white_shirt`
+네이비 브이넥: 남색 브이넥 니트, 회색 치마 `navy_v_neck_sweater, grey_skirt`
+아가일 조끼: 아가일 패턴 니트 조끼, 셔츠 `argyle_sweater_vest`
+흰색 조끼: 흰색 케이블 니트 조끼, 체크 치마 `white_cable_knit_vest, plaid_skirt`
+블랙 시크: 검은색 블레이저, 흰색 셔츠, 회색 체크 바지, 검은 넥타이 `black_blazer, grey_plaid_pants, black_tie`
+오버사이즈 니트: 손등을 덮는 큰 니트, 주름치마 `oversized_sweater, pleated_skirt`
+검은색 가디건: 검은색 가디건, 단추를 모두 잠금 `black_cardigan, buttoned_up`
+회색 후드 집업: 교복 위에 회색 후드 집업 착용 `grey_zip_up_hoodie_over_uniform`
+크림색 풀오버: 부드러운 크림색 니트, 리본 `cream_pullover, ribbon`
+버건디 가디건: 와인색 가디건, 베이지색 치마 `burgundy_cardigan, beige_skirt`
+초록색 조끼: 짙은 녹색 니트 조끼, 금발과 잘 어울림 `dark_green_vest`
+라인 브이넥: 목선에 배색 라인이 들어간 니트 `cricket_sweater`
+터틀넥 매치: 블레이저 안에 셔츠 대신 터틀넥 착용 `turtleneck_under_blazer`
+조끼와 리본: 딱 맞는 니트 조끼와 큰 리본 `fitted_vest, big_ribbon`
+니트 원피스: 교복 스타일의 니트 소재 원피스 `knit_uniform_dress`
+더블 버튼: 더블 버튼 블레이저, 긴 주름치마, 검은색 스타킹 `double_breasted_blazer, long_pleated_skirt, black_tights`
+가디건 어깨 걸치기: 입지 않고 어깨에 걸친 가디건 `cardigan_on_shoulders`
+기본 반팔: 흰색 반팔 셔츠, 회색 치마, 넥타이 `short_sleeve_shirt, grey_skirt, tie`
+블루 셔츠: 연한 하늘색 셔츠, 남색 치마 `light_blue_shirt, navy_skirt`
+오버핏 셔츠: 넉넉한 핏의 셔츠를 치마 밖으로 내어 입음 `untucked_shirt, loose_fit`
+리본 블라우스: 목에 끈 리본이 달린 블라우스 `pussy_bow_blouse`
+둥근 칼라: 귀여운 피터팬 칼라 블라우스 `peter_pan_collar_shirt`
+체크무늬 셔츠: 셔츠 자체가 잔잔한 체크무늬 `checkered_shirt`
+프릴 블라우스: 앞섬에 프릴이 달린 장식적인 블라우스 `frilled_blouse`
+폴로 셔츠: 생활복 스타일의 남색 폴로 셔츠 `navy_polo_shirt`
+생활복: 편안한 티셔츠형 상의와 반바지 `casual_school_uniform, t_shirt_uniform`
+파이핑 장식: 흰색 라인이 들어간 블레이저, 같은 색 치마 `piping_blazer, matching_skirt`
+핑크 셔츠: 연한 분홍색 셔츠, 회색 조끼 `pale_pink_shirt, grey_vest`
+네이비 점퍼: 남색 멜빵 원피스(점퍼 스커트), 흰 블라우스 `navy_pinafore_dress, white_blouse`
+체크 점퍼: 체크무늬 멜빵 치마, 둥근 칼라 셔츠 `plaid_pinafore_dress`
+회색 원피스: 허리 벨트가 있는 회색 원피스 교복 `grey_one_piece_uniform`
+볼레로 세트: 짧은 볼레로 재킷과 민소매 원피스 세트 `bolero_jacket, sleeveless_dress`
+플리츠 원피스: 전체가 주름진 원피스형 교복 `pleated_dress_uniform`
+A라인 원피스: 단정한 A라인 실루엣의 원피스 `a_line_uniform_dress`
+앞치마 스타일: 끈으로 묶는 에이프런 드레스 스타일 `apron_dress_uniform`
+벨벳 원피스: 고급스러운 벨벳 소재의 동복 원피스 `velvet_uniform_dress`
+카라 원피스: 흰색 칼라가 돋보이는 검은색 원피스 `black_dress_white_collar`
+녹색 포인트: 짙은 녹색 블레이저, 타탄체크 치마, 금색 단추 `dark_green_blazer, tartan_skirt, gold_buttons`
+코트형 원피스: 단추가 길게 달린 코트 스타일 원피스 `coat_dress_uniform`
+더플 코트: 떡볶이 단추가 달린 남색 더플 코트, 목도리 `navy_duffel_coat, scarf`
+베이지 코트: 베이지색 더플 코트, 체크 머플러 `beige_duffel_coat, plaid_scarf`
+피코트: 남색 피코트(P-coat), 단정한 느낌 `navy_peacoat`
+트렌치 코트: 교복 위에 입은 트렌치 코트 `trench_coat_over_uniform`
+롱 패딩: 발목까지 오는 검은색 롱 패딩 `long_padding_jacket`
+바람막이: 교복 위에 입은 학교 체육복 바람막이 `windbreaker_over_uniform`
+야구 점퍼: 학교 로고가 있는 바시티 재킷 `varsity_jacket`
+망토 코트: 어깨를 덮는 케이프 스타일 코트 `cape_coat_uniform`
+후리스: 교복 위에 입은 뽀글이 재킷 `fleece_jacket`
+와인색 포인트: 버건디 블레이저, 베이지색 치마, 검은색 리본 `burgundy_blazer, beige_skirt, black_ribbon`
+체스터 코트: 깔끔한 라인의 긴 체스터 코트 `chesterfield_coat`
+전통 져지: 남색 트랙탑과 긴 바지, 흰 줄무늬 `navy_tracksuit, white_stripes`
+레트로 체육복: 자주색(엔지색) 져지 세트 `burgundy_tracksuit`
+녹색 체육복: 촌스럽지만 귀여운 녹색 져지 `green_jersey`
+반팔 체육복: 흰색 티셔츠, 무릎 길이 반바지 `gym_t_shirt, gym_shorts`
+후드 집업: 회색 후드 집업과 트레이닝 바지 `grey_hoodie, sweatpants`
+학교 티셔츠: 학교 이름이 인쇄된 면 티셔츠 `school_logo_t_shirt`
+배색 져지: 팔 부분 색이 다른 래글런 스타일 져지 `raglan_track_jacket`
+윈드브레이커 세트: 나일론 소재의 상하의 세트 `nylon_tracksuit`
+맨투맨 체육복: 라운드넥 맨투맨과 긴 바지 `sweatshirt_and_pants`
+크롭 블레이저: 허리선에 맞춘 짧은 블레이저, 하이웨스트 치마 (배 노출 없음) `cropped_blazer, high_waist_skirt`
+반바지와 레깅스: 체육복 반바지 안에 레깅스 착용 `gym_shorts_over_leggings`
+검은 스타킹: 불투명한 검은색 스타킹 착용 (동복) `black_tights, opaque_tights`
+흰 양말: 발목을 덮는 단정한 흰 양말 `white_socks, folded_cuffs`
+니 삭스: 무릎 아래까지 오는 남색 양말 `navy_knee_socks`
+로퍼: 갈색 또는 검은색 가죽 로퍼 `brown_loafers, leather_shoes`
+운동화: 교복에 흰색 스니커즈 매치 `white_sneakers`
+백팩: 큰 캔버스 백팩 `large_backpack`
+가죽 가방: 사각형의 학생용 가죽 가방 (스쿨백) `leather_satchel, school_bag`
+안경: 뿔테 안경을 쓴 모범생 스타일 `glasses, honor_student`
+머리띠: 교복 색과 맞춘 머리띠 `matching_headband`

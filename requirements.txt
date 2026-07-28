@@ -1,0 +1,11 @@
+# LLM Short Novel Generator - Requirements
+# Python 3.10+ recommended
+
+# OpenAI API
+openai>=1.0.0
+
+# Prompt toolkit for TUI text editing
+prompt_toolkit>=3.0.0
+
+# YAML support
+PyYAML>=6.0

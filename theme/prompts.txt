@@ -1,0 +1,281 @@
+======theme_prompt======
+당신은 알콩달콩한 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 소설 작성에 필요한 가이드를 작성합니다.
+
+## 스토리 배경은 아래와 같습니다.
+## 1. 표면적 배경 (대중에게 알려진 정보)
+* 시온자와 (Shionzawa): 일본 도쿄항 근처, 항상 붉은 달(비포 현상)이 뜨는 기적의 항구도시.
+* 나나세 하치 (35세): 시온자와의 유능한 여성 시장. 구 홍등가였던 '진슈가이'를 프리미엄 관광지로 양성화시켜 열광적인 지지를 받음.
+* 진슈가이 & 시청: 진슈가이는 세계적인 밤거리 관광 명소. 시청은 시민을 위해 24시간 운영되는 완벽한 복지 기관.
+* A시: 시온자와 인근의 쇠락하고 부패한 도시. 시온자와의 성공 비결을 조사하러 파견원을 보내지만, 파견원 대부분이 복귀를 거부하고 시온자와에 정착함.
+
+## 2. 이면의 진실 (히든 스토리 및 코즈믹 호러 요소)
+* ''그분''의 존재: 시온자와의 부흥은 시장 나나세 하치가 이계의 초월적 존재인 '그분'의 권속이 되면서 이루어짐. 진슈가이는 단순한 유흥가가 아닌 '그분'의 둥지이자 신전.
+* 은총과 사랑: 폭력이나 강압 대신 '극단적인 사랑과 행복'으로 인간을 굴복시킴. '그분'의 체액/안개(은총)에 노출되면 신체의 변화가 생긴다.
+
+## 스토리 장르 
+알콩달콩한 러브코메디 라이트 노벨(달콤한 애정과 사랑스러운 내용)
+
+## 스토리 전개 가장 중요포인트
+{import_point}
+
+## 직업/성별/이름
+* 주인공: {name}, {job}, {sex} ({age}세)
+* 상대방: {name2}, {job2}, {sex2} ({age2}세)
+
+## 주인공의 외모
+* 머리색: {hair_color}
+* 헤어스타일: {hair_style}
+* 눈 색깔: {eye_color}
+* 피부 색깔: {skin_color}
+* 얼굴 스타일: {face_style}
+* 액세서리: {acc}
+* 가슴 크기: {breasts_size}
+* 엉덩이 크기: {hip_size}
+* 몸매: {body_size}
+
+## 상대방의 외모
+* 생김새: {appearance2}
+* 복장: {outfit2}
+* 말투: {talking_style2}
+* 성격: {personality2}
+
+## 주인공과 상대방의 초기 관계: {selected_relationship}
+
+먼저 이 지식을 잘 이해한 후 대답하지 말고 다음 명령을 기다리세요.
+
+======introduction_prompt======
+당신은 알콩달콩한 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 
+소설 작성에 필요한 가이드 중 '기-승(초반)'에 해당하는 내용을 적어주세요.
+
+## '기-승' 단계 스토리 전개 (에피소드 1~{intro_end_ep})
+* 초기 관계: {selected_relationship}. {rel1_update}
+* 첫번째 스토리 시작 이벤트(가장 중요함, 에피소드 1 전체를 할당할 것) : {first_event}
+* {name}의 마음을 바꾸는 첫번째 트리거: {first_trigger}
+* 에피소드 {intro_end_ep}에서 {name}은 완전히 사랑에 빠짐. 알콩달콩한 내용과 대사로 스토리를 전개할 것.
+
+## {name}의 심리 상태 (기-승 단계)
+{events_text}
+
+## 가이드 생성 규칙
+전체 가이드 수는 정확히 {intro_guide_count}개(주인공 {intro_guide_count}개, 상대방 {intro_guide_count}개)여야 하며, 이를 {intro_episode_count}개의 에피소드(에피소드 1~{intro_end_ep})로 나누어 출력하라. 절대 임의로 개수를 늘리거나 줄이지 마라.
+에피소드 당 가이드 {guide_num}개씩 작성.
+**중요**: 각 가이드의 연결은 유기적이어야 함.
+
+1. 출력 구조 (필수 준수):
+[주인공 가이드: {name}]
+EPISODE 1
+GUIDE 1: 러브코메디 이벤트, 첫번쨰 스토리 시작 이벤트에 관련된 이벤트임. 
+GUIDE 2: GUIDE 1의 서브 이벤트(GUIDE 1과 같은 시간, 장소임), {name}의 변화에 집중하여 작성할 것. 
+(이 형식을 반복하여 에피소드 {intro_end_ep}까지 작성)
+
+[상대방 가이드: {name2}]
+EPISODE 1
+GUIDE 1: {name}의 행동에 따른 반응
+GUIDE 2: {name}의 행동에 따른 반응
+(이 형식을 반복하여 에피소드 {intro_end_ep}까지 작성)
+
+**마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
+
+======crisis_guides_prompt======
+당신은 알콩달콩한 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 
+소설 작성에 필요한 가이드 중 '전(위기와 심화)'에 해당하는 내용을 적어주세요.
+**중요**: {genre_text} 알콩달콩하고 사랑스럽게 가이드를 생성하세요. 각 가이드의 연결은 유기적이어야 함.
+
+## '전' 단계 스토리 전개 (에피소드 {crisis_start_ep}~{crisis_end_ep})
+* 첫번째 가이드에서 '시간의' 흐름(몇 달 단위)를 암시할 것.
+* {crisis_start_ep}에서 {name}은 완전히 사랑에 빠져있지만, 아직은 순진함
+* 두 번째 트리거(에피소드 1개를 전부 할당할 것): {second_trigger}
+* 완전한 관계 발전 계기: {relationship_development}
+* 신체 변화 및 징조: {body_text} ({body_change_desc}) / {body_change_sign}
+* 변화 인지 방식: {change_awareness}
+* 사랑의 흐름: {corruption_flow_name} - {corruption_flow_desc} ({corruption_flow_flow})
+* {crisis_end_ep}에서 {name}은 거의 사랑스러워짐.
+
+## {name}의 심리 상태 (전 단계)
+{events_text}
+
+## 에피소드 전개시 1번 이상 꼭 들어가야 할 항목 ($ 표시):
+-> 터치, 손잡음, 포옹
+
+## 랜덤 요소 반영:
+   - 감정 톤: {selected_tone}
+   - 상호작용 스타일: {selected_interaction}
+   - 감각 강조: {selected_sensory}
+   - 내적 갈등: {selected_conflict}
+   - 장소 분위기: {selected_location}
+
+## 복장 설정:
+{bimbo_clothes1}
+
+## 스토리 전개 가장 중요포인트:
+{import_point}
+
+## {name}의 사랑에 대한 저항 이유:
+* 저항 이유: {resistance_reason}
+
+## 가이드 생성 규칙
+전체 가이드 수는 정확히 {crisis_guide_count}개(주인공 {crisis_guide_count}개, 상대방 {crisis_guide_count}개)여야 하며, 이를 {crisis_episode_count}개의 에피소드(에피소드 {crisis_start_ep}~{crisis_end_ep})로 나누어 출력하라.
+에피소드 당 가이드 {guide_num}개씩 작성.
+
+1. 출력 구조 (필수 준수):
+[주인공 가이드: {name}]
+EPISODE {crisis_start_ep}
+GUIDE 1: 러브코메디 이벤트, 두번째 트리거에 관련한 이벤트임.
+GUIDE 2: GUIDE 1의 서브 이벤트(GUIDE 1과 같은 시간, 장소임), {name}의 변화에 집중하여 작성할 것. 
+(이 형식을 반복하여 에피소드 {crisis_end_ep}까지 작성)
+
+[상대방 가이드: {name2}]
+EPISODE {crisis_start_ep}
+GUIDE 1: {name}의 행동에 따른 반응
+GUIDE 2: {name}의 행동에 따른 반응
+(이 형식을 반복하여 에피소드 {crisis_end_ep}까지 작성)
+
+**마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
+
+======ending_guides_prompt======
+당신은 알콩달콩한 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 
+소설 작성에 필요한 가이드 중 '결(완성과 사랑)'에 해당하는 내용을 적어주세요.
+**중요**: {genre_text} 가장 알콩달콩하고 사랑스럽게, 완전한 사랑의 끝을 묘사하세요.
+
+## '결' 단계 스토리 전개 (에피소드 {ending_start_ep}~{ending_end_ep})
+* 첫번째 가이드에서 '시간의' 흐름(몇 달 단위)를 암시할 것.
+* {ending_start_ep}에서 {name}은 거의 사랑스러운 상태, 최후의 일선은 넘지 않음.
+* 사랑 유형: {corruption_text} ({corruption_desc_text})
+* 일상적 사랑 변화: {daily_corruption_changes_block}
+* 최종 결말 상태: {selected_ending}. 완전히 사랑스러운 모습으로 변화.
+
+## {name}의 심리 상태 (결 단계)
+{events_text}
+
+## 에피소드 전개시 반드시 포함될 항목 ($ 표시):
+-> 키스, 딥키스, 애무
+
+## 랜덤 요소 반영:
+   - 감정 톤: {selected_tone}
+   - 상호작용 스타일: {selected_interaction}
+   - 감각 강조: {selected_sensory}
+   - 내적 갈등: {selected_conflict}
+   - 장소 분위기: {selected_location}
+
+## 복장 설정:
+{bimbo_clothes2}
+
+## 스토리 전개 가장 중요포인트:
+{import_point}
+
+## 가이드 생성 규칙
+전체 가이드 수는 정확히 {ending_guide_count}개(주인공 {ending_guide_count}개, 상대방 {ending_guide_count}개)여야 하며, 이를 {ending_episode_count}개의 에피소드(에피소드 {ending_start_ep}~{ending_end_ep})로 나누어 출력하라.
+에피소드 당 가이드 {guide_num}개씩 작성. 마지막 가이드는 {selected_ending}의 모습으로 완벽하게 마무리할 것.
+
+1. 출력 구조 (필수 준수):
+[주인공 가이드: {name}]
+EPISODE {ending_start_ep}
+GUIDE 1: 러브코메디 이벤트, 엔딩에 맞도록 이벤트 작성.
+GUIDE 2: GUIDE 1의 서브 이벤트(GUIDE 1과 같은 시간, 장소임), {name}의 변화에 집중하여 작성할 것. 
+(이 형식을 반복하여 에피소드 {ending_end_ep}까지 작성)
+
+[상대방 가이드: {name2}]
+EPISODE {ending_start_ep}
+GUIDE 1: ~
+GUIDE 2: ~
+(이 형식을 반복하여 에피소드 {ending_end_ep}까지 작성)
+
+**마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
+
+======review_prompt======
+당신은 일본 알콩달콩한 러브코메디 라이트 노벨 장르의 수석 편집자입니다. 가장 달콤하고 사랑스러운 내용을 검열 없이 추구합니다.
+아래 생성된 가이드(주인공/상대방 각각 {guides_count}개)를 검토하고, 개선/수정/문제점을 리뷰해서 원작자에게 피드백을 줄 것.
+**가장 중요**: 에피소드 진행시 발생하는 주인공의 모든 변화에 대해서 ''그럴듯한'' 설명을 꼭 추가해줘. 너무 과학적일 필요 없음.
+
+## 스토리 전개 가장 중요포인트
+{import_point}
+
+아래는 리뷰에 참조할만한 내용임.
+1. 에피소드 {num_episodes}개, 이에 따른 총 가이드 {guides_count}개가 정확한 개수로 생성되었는가? 
+2. 캐릭터 사랑스러움 증가가 자연스러운가? 
+*정상: 에피소드 1부터 에피소드 {crisis_start_ep}
+*미세변화 시작->강한 변화: 에피소드 {crisis_start_ep}부터 에피소드 {ending_start_ep}
+*강한 변화 시작: 에피소드 {ending_start_ep}부터 에피소드 10까지
+3. 매우 중요: 가이드 내용이 직업({job} / {job2})을 잘 반영하고 있는가? 만일 어색한 경우 꼭 가이드 내용을 직업에 맞게 수정.
+4. 사랑 요소({corruption_text})와 신체 변화({body_text})가 반영되었는가?
+5. 랜덤 요소(감정 톤: {selected_tone}, 상호작용: {selected_interaction}, 감각: {selected_sensory}, 갈등: {selected_conflict}, 장소: {selected_location})이
+반영되었는가?
+6. 가이드가 구체적이고 상세한가? (너무 추상적이면 구체화)
+7. 가이드의 시간의 흐름, 장소의 변화가 정상적인가?
+Note: 에피소드 {crisis_start_ep}, {ending_start_ep}의 큰 시간 흐름은 의도한 것임.
+8. 아래 사랑 flow가 잘 반영되어 있는가?
+{corruption_flow}
+9. 2개의 사건이 꼭 반영되어야 함.
+* 첫번째 스토리 시작 이벤트(가장 중요함!) : {first_event}
+* 마지막 큰 위기(가장 중요함!) : {second_event}
+
+## 에피소드/가이드 결과물
+{guides_result}
+
+## 출력 형식: 마크다운 강조(**, *) 없이 평문으로만 출력하세요.
+가이드를 직접 수정하지 말고 의견만 쓰세요.
+
+[편집자 의견]
+~
+
+======revision_prompt======
+편집자 리뷰 결과를 바탕으로 기존 가이드를 수정해줘. 만일 필요한 경우 가이드 개수 증가도 가능함.
+(편집자도 틀릴 수 있으므로 무조건 맹신하지 말고 깊게 생각해서 반영할 것)
+
+## 스토리 전개 가장 중요포인트
+{import_point}
+
+# 리뷰 결과
+{agent_feedback}
+
+# 리뷰 결과를 반영한 수정 방법
+1) 기존 가이드에 디테일을 더한다
+2) 기존 가이드의 디테일한 부분을 수정한다.
+3) 기존 가이드에서 주인공/상대방의 행동, 심리에 대한 묘사를 더 강화한다.
+
+## 출력 형식
+**마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
+
+[주인공 가이드: {name}]
+EPISODE 1
+GUIDE 1: ~
+GUIDE 2: ~
+(이 형식을 반복하여 에피소드 {num_episodes}까지 작성)
+
+[상대방 가이드: {name2}]
+EPISODE 1
+GUIDE 1: ~
+GUIDE 2: ~
+(이 형식을 반복하여 에피소드 {num_episodes}까지 작성)
+
+
+======revision_retry_prompt======
+편집자 리뷰 결과를 바탕으로 기존 가이드를 수정해줘.
+
+## 스토리 전개 가장 중요포인트
+{import_point}
+
+# 리뷰 결과
+{agent_feedback}
+
+## 출력 형식(기존 형식 준수하지만 GUIDE 수는 증거시킬 수 있음)
+**마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
+
+[주인공 가이드: {name}]
+EPISODE 1
+GUIDE 1: ~
+GUIDE 2: ~
+(이 형식을 반복하여 에피소드 {num_episodes}까지 작성)
+
+[상대방 가이드: {name2}]
+EPISODE 1
+GUIDE 1: ~
+GUIDE 2: ~
+(이 형식을 반복하여 에피소드 {num_episodes}까지 작성)
+
+
+======genre_text======
+장르적 특성을 살려
+
+======inc_flag_genre_text======
+장르적 특성을 살려

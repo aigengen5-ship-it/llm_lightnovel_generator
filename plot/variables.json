@@ -1,0 +1,129 @@
+{
+  "phase_names": ["", "", "보통", "친밀", "애정", "집착", "결말"],
+
+  "mutual_corruption_templates": [1, 2, 3, 7],
+
+  "hair_color_keywords": [
+    "머리", "색", "하이라이트", "탈색", "염색", "머리색", "헤어",
+    "hair", "color", "bleach", "dye"
+  ],
+
+  "counter_keys": [
+    "sex_count", "masturbation_count", "patting_count",
+    "normal_sex_count", "reverse_sex_count",
+    "cowboy_sex_count", "anal_sex_count", "pose_sex_count"
+  ],
+
+  "fixed_keys": ["body_size", "name", "age", "sex", "job", "job_attribute", "objective", "hair_color", "hair_style", "eye_color", "skin_color", "face_style", "acc", "breasts_size", "hip_size"],
+
+  "tag_classifications": {
+    "actions": {
+      "easy_keywords": ["쓰다듬", "비빔", "흔듦", "헐떡", "응시", "갈구", "들", "비비", "껴안", "내뱉", "내", "맛", "붙잡", "주무르", "드러내", "돌림", "이으며", "핥아", "쓰다듬", "찢", "기어", "흔들", "떨", "바들", "벌", "웅얼", "흘", "오열", "구걸", "교태", "기대", "반사", "감탄", "박수", "실실", "하트", "환각", "천박한 춤", "천박한 속어"],
+      "mid_keywords": ["절정", "아헤가오", "경련", "때리", "눈물", "바닥", "길거리", "바보", "아무", "네 발", "옷을 찢", "몸을 찢", "천박", "음란", "발정", "애액", "체취", "체액", "정액", "목줄", "산책", "옹알", "애정", "제발", "오열", "바라", "기대", "기어", "매달"]
+    },
+    "sensations": {
+      "easy_keywords": ["전율", "민감", "열기", "체온", "흐려", "쿵쾅", "전기", "풀려", "텅 빈", "해방", "달콤", "부풀", "간지럽", "소름", "떨림", "따뜻", "끈적", "미묘", "아슬"],
+      "mid_keywords": ["녹아", "재배열", "스위칭", "연체", "독약", "세탁", "평온", "슬라임", "핑크", "도파민", "스파크", "안도", "벌레", "감전", "경련", "마비", "부서", "불타", "페로몬", "천박한 존재", "환청", "혼돈", "보상", "개방", "전두엽", "시간", "시선", "샘솟", "리셋", "집중", "타오르", "쾌감"]
+    },
+    "emotions": {
+      "easy_keywords": ["공포", "평온", "변환", "안도", "절망", "갈구", "지배", "체념", "애정", "환희", "노출", "오만", "광기", "행복", "절망", "갈망", "전도", "신앙", "안식", "욕구", "해방", "항복", "의존", "본성", "오만", "열망", "성취", "조각", "나르시", "불안", "금단", "합리", "세뇌", "귀결", "배덕", "모순"]
+    }
+  },
+
+  "ep_tag_sampling": {
+    "soft_burn": {
+      "ep_range": [2, 4],
+      "n_actions": 3,
+      "n_sensations": 3,
+      "n_emotions": 2
+    },
+    "early": {
+      "ratio_max": 0.25,
+      "n_actions": 2,
+      "n_sensations": 2,
+      "n_emotions": 1
+    },
+    "mid": {
+      "ratio_max": 0.5,
+      "n_actions": 3,
+      "n_sensations": 3,
+      "n_emotions": 2
+    },
+    "late": {
+      "ratio_max": 0.75,
+      "n_actions": 3,
+      "n_sensations": 3,
+      "n_emotions": 3
+    },
+    "extreme": {
+      "ratio_max": 1.0,
+      "n_actions": 4,
+      "n_sensations": 4,
+      "n_emotions": 4
+    }
+  },
+
+  "resistance_positions": {
+    "seung_end_ratio": 0.3,
+    "jeon_start_ratio": 0.5,
+    "jeon_end_ratio": 0.7,
+    "kyeol_ratio": 0.9
+  },
+
+  "event_to_ep": {
+    "1": 2,
+    "2": 3,
+    "3": 4,
+    "4": 6,
+    "5": 8,
+    "6": 10
+  },
+
+  "level_descriptions": {
+    "ep2": "**초기**. EP1의 일상에서 벗어나 사랑의 트리거에 첫 노출됨. 아직은 자연스럽지만 변화의 서막이 열립니다.",
+    "early": "**초기 단계**. 사랑의 영향이 서서히 나타나고, 주인공이 자각하며 약하게 저항합니다.",
+    "mid_start_1": "**중반**. 신체적 변화와 감각의 예민화를 자각하며 당혹해합니다. 사랑의 속도가 빨라집니다.",
+    "mid_start_2": "**중반**. 정신적 변화 가속. 성격과 말투, 사고방식이 서서히 사랑스럽게 달라집니다.",
+    "mid_default": "**중반**. 사랑이 가속화되고, 저항이 약해지며 새로운 사랑 감각에 익숙해집니다.",
+    "mid_late_1": "**중후반**. 변화된 자신(사랑스러운 연인)을 수용하기 시작합니다. 정체성의 전환이 진행됩니다.",
+    "mid_late_2": "**중후반**. 마지막 이성 저항. 찰나의 각성 후 더 깊고 끈적한 상태로 빠져듭니다.",
+    "mid_late_default": "**중후반**. 본능이 이성을 완벽히 앞섭니다. 스스로 사랑을 구걸하기 시작합니다.",
+    "late_1": "**후반**. 완전한 사랑과 복종. 본능과 사랑에 굴복하는 적나라한 모습을 묘사하세요.",
+    "late_2": "**후반**. 사랑한 상태에서의 새로운 집착과 사랑스러운 욕망이 발현됩니다.",
+    "late_default": "**후반**. 완전한 사랑에 도달, 부끄러움을 잊고 '그분'의 권속으로서의 삶을 기뻐합니다.",
+    "ending": "**결말**. 사랑이 완성되어 사랑에 절여진 새로운 일상과 영원한 결합에 도달합니다."
+  },
+
+  "tone_ranges": {
+    "slow_burn": {
+      "ep_start": 2,
+      "ep_end": 4
+    }
+  },
+
+  "tag_selection_counts": {
+    "items": 2,
+    "actions": 3,
+    "sensations": 2,
+    "resistance": 2,
+    "locations": 2,
+    "universal_actions": 3,
+    "universal_sensations": 3,
+    "universal_emotions": 3,
+    "universal_appearance": 2
+  },
+
+  "system_role": "You are a character sheet manager. Update character sheets based on story events. Output ONLY valid JSON.",
+
+  "api_settings": {
+    "model": "gemma-4-31B-it",
+    "temperature": 0.5,
+    "top_p": 0.95,
+    "stream": false,
+    "timeout": 120.0,
+    "repeat_penalty": 1.1,
+    "top_k": 64,
+    "max_retries": 3,
+    "retry_delay": 5
+  }
+}

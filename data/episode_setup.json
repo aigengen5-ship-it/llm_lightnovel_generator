@@ -1,0 +1,17 @@
+{
+  "total_episodes": 10,
+  "files": [
+    {
+      "filename": "episode_a2a.txt",
+      "description": "연애 라노벨(성인/성인)"
+    },
+    {
+      "filename": "episode_s2s.txt",
+      "description": "연애 라노벨(학생/학생)"
+    },
+    {
+      "filename": "episode_s2t.txt",
+      "description": "연애 라노벨(학생/선생)"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+    "extended": "yes",
+    "ip_main": "gx10-a5a3",
+    "port_main": "8000",
+    "mainLLM": "gemma",
+    "ip_agent": "gx10-a5a3",
+    "port_agent": "8000",
+    "agent": "localhost",
+    "agent_example": "localhost:8081",
+    "agent_2nd": "no",
+    "theme_agent": "yes",
+    "theme_auto":  "yes",
+    "anima_enb" : "no",
+    "anima_agent": "gemma",
+    "anima_lora": 1,
+    "anima_style": "lora_mix3",
+    "archtype_enb": "yes",
+    "debug_menu": "yes",
+    "noimage": "yes"
+}
