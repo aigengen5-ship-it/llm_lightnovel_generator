@@ -13,3 +13,4 @@
 *.md
 *.md
 /__pycache__
+*.bak
