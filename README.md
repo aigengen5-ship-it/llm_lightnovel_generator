@@ -14,7 +14,7 @@
 3. 디렉토리에서 파이썬 virtual 환경을 만들어 주세요.
 
 
-python3 -m venv ./vemv
+python3 -m venv ./venv
 
 4. virtual환경을 활성화 시켜 주세요.
 
