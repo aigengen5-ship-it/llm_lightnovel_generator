@@ -10,9 +10,8 @@ import re
 import story_gen
 import sys
 import time
-from openai import APITimeoutError
 from openAPI_control import (
-    get_openai_client, call_openai_for_plot, call_openai_for_client
+    call_openai_for_plot
 )
 
 # =============================================================================
@@ -178,35 +177,20 @@ def _update_character_sheets_via_api(episode_text, ep_num,
         anal_sex_count=config.anal_sex_count, pose_sex_count=config.pose_sex_count,
         ep_num=ep_num, episode_text=episode_text, name1=name1, name2=name2
     )
-    client = get_openai_client()
-    messages = [
-        {"role": "system", "content": VARS["system_role"]},
-        {"role": "user", "content": prompt}
-    ]
-    temp = api_settings["temperature"]
-    max_try = 0
-    timeout_check = 0
-    while timeout_check == 0:
-        try:
-            response = client.chat.completions.create(
-                model=api_settings["model"], messages=messages, temperature=temp,
-                top_p=api_settings["top_p"], stream=api_settings["stream"],
-                timeout=api_settings["timeout"],
-                extra_body={"repeat_penalty": api_settings["repeat_penalty"], "top_k": api_settings["top_k"]}
-            )
-            timeout_check = 1
-        except APITimeoutError:
-            if log_fn:
-                log_fn(f"[캐릭터 시트 업데이트] EPISODE {ep_num} - 서버 응답 시간 초과. 재시도 ({max_try + 1}/{api_settings['max_retries']})")
-            timeout_check = 0
-            max_try += 1
-            time.sleep(api_settings["retry_delay"])
-            if max_try > api_settings["max_retries"]:
-                if log_fn:
-                    log_fn(f"[캐릭터 시트 업데이트] EPISODE {ep_num} - 서버 응답 실패. 기존 시트 유지")
-                return current_protagonist, current_partner
-
-    result = response.choices[0].message.content.strip()
+    result, _ = call_openai_for_plot(
+        prompt,
+        system_prompt=VARS["system_role"],
+        log_fn=log_fn,
+        temperature=api_settings["temperature"],
+        timeout=api_settings["timeout"],
+        repeat_penalty=api_settings["repeat_penalty"],
+        max_retries=api_settings["max_retries"],
+        retry_delay=api_settings["retry_delay"]
+    )
+    if result == "서버 응답 실패":
+        if log_fn:
+            log_fn(f"[캐릭터 시트 업데이트] EPISODE {ep_num} - 서버 응답 실패. 기존 시트 유지")
+        return current_protagonist, current_partner
     import json as json_module
     try:
         result_clean = result.strip()
@@ -357,7 +341,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
     for key in VARS["counter_keys"]:
         setattr(config, key, 0)
     config.episode_snapshots = []
-    if getattr(config, 'inc_flag', 0) == 1:
+    if config.inc_flag == 1:
         rel1 = getattr(config, 'rel1', '')
         if rel1 in ('엄마', '어머니'):
             config.sex_count = 1
@@ -425,7 +409,8 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
     else:
         relationship_desc = f"{name1}과(와) {name2}는 {job1}과(와) {job2}입니다."
     if template_id in mutual_corruption_templates:
-        relationship_desc += (f"\n- {name1}, {name2}의 관계는 {config.relationship}입니다.")
+        relationship_desc += (f"\n- {name2}는 {name1}의 동반자입니다. 서로를 괴롭히지 않고, "
+                             f"{name1}와 다정한 애인이 되는 관계입니다.")
     else:
         relationship_desc += (f"\n- {name1}, {name2}의 관계는 {config.relationship}입니다.")
 
@@ -457,6 +442,11 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
             jinshugai_info = f"\n  추가 진슈가이: {jinshugai_text}"
 
     inc_emphasis = ""
+    if config.inc_flag == 1:
+        theme_info += "/근친상간의 배덕감과 천박함"
+
+    if config.get_json_value().get("extended", "no") == "yes" and config.inc_flag == 1:
+        inc_emphasis = "\n* 가족애/배덕 강조: 가족 간 따뜻한 애정이 쾌락으로 변질되는 배덕적인 과정을 적나라하게 묘사할 것."
  
     phase1_end = int(total_episodes * 0.3)
     phase2_start = phase1_end + 1
@@ -467,7 +457,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
 
     _log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log")
     os.makedirs(_log_dir, exist_ok=True)
-    log_file = open(os.path.join(_log_dir, "debug_api.log"), "w", encoding="utf-8")
+    log_file = open(os.path.join(_log_dir, "debug_api.log"), "a", encoding="utf-8")
     def log(msg):
         log_file.write(msg + "\n")
         log_file.flush()
@@ -475,12 +465,12 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
 
     # RAG Word 로드
     rag_word = "(단어 목록 없음)"
-    #rag_word_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "rag_word.txt")
-    #try:
-    #    with open(rag_word_path, "r", encoding="utf-8") as f:
-    #        rag_word = f.read().strip()
-    #except FileNotFoundError:
-    #    pass
+    rag_word_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "rag_word.txt")
+    try:
+        with open(rag_word_path, "r", encoding="utf-8") as f:
+            rag_word = f.read().strip()
+    except FileNotFoundError:
+        pass
     config.rag_word = rag_word
 
     # 타락 가이드 매핑
@@ -492,7 +482,22 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
         return int(match.group(1)) if match else current_ep
 
     def _extract_dollar_actions(text):
-        return 0
+        action_words = [
+            '터치', '손잡음', '포옹', '키스', '딥키스', '애무'
+        ]
+        # config.abnormal_trigger가 있으면 단어장에 추가
+        random_trigger = getattr(config, 'abnormal_trigger', '')
+        if random_trigger:
+            action_words.append(random_trigger)
+        results = []
+        for word in action_words:
+            if f'${word}' in text or f'{word}$' in text:
+                idx = text.find(f'${word}')
+                if idx == -1:
+                    idx = text.find(f'{word}$')
+                results.append((idx, word))
+        results.sort(key=lambda x: x[0])
+        return [word for _, word in results]
 
     guides_text_lines = []
     partner_guides_text_lines = []
@@ -514,6 +519,18 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
             if ep_assign not in config.special_writing_req:
                 config.special_writing_req[ep_assign] = []
             config.special_writing_req[ep_assign].extend(dollar_actions)
+
+    # config.special_writing_req를 로그 파일에 저장
+    log(f"\n{'=' * 60}")
+    log(f"[config.special_writing_req]")
+    log(f"{'=' * 60}")
+    if config.special_writing_req:
+        for ep_num in sorted(config.special_writing_req.keys()):
+            actions = config.special_writing_req[ep_num]
+            log(f"  EPISODE {ep_num}: {actions}")
+    else:
+        log("  (없음)")
+    log(f"{'-' * 60}\n")
 
     current_ep = 1
     for idx, guide in enumerate(partner_corruption_guides):
@@ -538,7 +555,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
     # -------------------------------------------------------------------------
     # 2. Master Setup Prompt
     # -------------------------------------------------------------------------
-    if callback: callback("[1/3] 마스터 세계관 및 작성 가이드 주입 중...", {"total_episodes": total_episodes, "current_episode": 0, "status": "마스터 세계관 주입 중"})
+    if callback: callback("[1/3] 마스터 세계관 및 작성 가이드 주입 중...")
     prompts = _load_prompts()
     master_setup_prompt = _build_prompt(
         prompts["master_setup"],
@@ -557,7 +574,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
         second_event=getattr(config, 'second_event', ''),
         import_point=getattr(config, 'import_point', '')
     )
-    result = call_openai_for_plot(master_setup_prompt, messages=plot_messages, log_fn=log)
+    result, plot_messages = call_openai_for_plot(master_setup_prompt, messages=plot_messages, log_fn=log)
 
     # -------------------------------------------------------------------------
     # character_sheet log 파일 초기화
@@ -572,7 +589,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
     # 3. EP1
     # -------------------------------------------------------------------------
     # EP1 작성 전: 초기 character_sheet를 EP1로 저장 (에피소드 1 작성 시 사용)
-    if callback: callback(f"[캐릭터 시트] EPISODE 1 초기 시트 저장...", {"total_episodes": total_episodes, "current_episode": 1, "status": "EPISODE 1 시트 저장"})
+    if callback: callback(f"[캐릭터 시트] EPISODE 1 초기 시트 저장...")
     config.episode_protagonist_sheets[0] = protagonist_sheet
     config.episode_partner_sheets[0] = partner_sheet
     _save_character_sheet_json({"protagonist": _parse_sheet_to_dict(protagonist_sheet),
@@ -586,15 +603,29 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
     cs_log_file.flush()
 
     # EP1 작성
-    if callback: callback("[2/3] 에피소드 생성 중... (EPISODE 1)", {"total_episodes": total_episodes, "current_episode": 1, "status": "EPISODE 1 생성 중"})
-    prompt_ep1 = _build_prompt(prompts["ep1_prompt"], name1=name1, name2=name2)
-    result = call_openai_for_plot(prompt_ep1, messages=plot_messages, log_fn=log)
+    ep_guides = ep_corruption_guides_map[1]
+    guide_parts = []
+    if ep_guides["protagonist"]:
+        guide_parts.append(f"- 주인공 가이드: {', '.join([f'#{g}' for g in ep_guides['protagonist']])}")
+    if ep_guides["partner"]:
+        guide_parts.append(f"- 상대방 가이드: {', '.join([f'#{g}' for g in ep_guides['partner']])}")
+    guides_desc = f"\n## 에피소드 가이드, 가장 중요함:  아래 주인공, 상대방 가이드를 잘 이해하고 기승전결 작성에 무조건 반영하세요!:\n" + "\n".join(guide_parts)
+
+    # EP1 현재 상태 추가
+    flow_status = getattr(config, 'flow_episode_status', None)
+    if flow_status and 0 < 1 <= len(flow_status):
+        guides_desc += f"\n\n## {name1}의 현재 상태 ##\n" + flow_status[0]
+
+    if callback: callback("[2/3] 에피소드 생성 중... (EPISODE 1)")
+    prompt_ep1 = _build_prompt(prompts["ep1_prompt"], name1=name1, name2=name2, guides_desc=guides_desc, 
+        import_point=getattr(config, 'import_point', ''))
+    result, plot_messages = call_openai_for_plot(prompt_ep1, messages=plot_messages, log_fn=log)
     ep1_text = result.strip()
     all_episodes = ep1_text
     config.episode_content[0] = ep1_text
 
     # EP1 생성 후 character_sheet 업데이트 → EP2로 저장 (다음 에피소드용)
-    if callback: callback(f"[캐릭터 시트] EPISODE 2 시트 생성 (EP1 반영)...", {"total_episodes": total_episodes, "current_episode": 1, "status": "EPISODE 2 시트 생성"})
+    if callback: callback(f"[캐릭터 시트] EPISODE 2 시트 생성 (EP1 반영)...")
     new_proto, new_part = _update_character_sheets_via_api(
         ep1_text, 2, protagonist_sheet, partner_sheet, name1, name2, log_fn=log
     )
@@ -646,7 +677,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
         slow_burn_end = tone_ranges["slow_burn"]["ep_end"]
 
     for i in range(2, total_episodes + 1):
-        if callback: callback(f"[2/3] 에피소드 {i}/{total_episodes} 생성 중...", {"total_episodes": total_episodes, "current_episode": i, "status": f"에피소드 {i} 생성 중"})
+        if callback: callback(f"[2/3] 에피소드 {i}/{total_episodes} 생성 중...")
         level_desc = _get_level_description(i, total_episodes)
 
         guides_desc = ""
@@ -657,11 +688,16 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
                 guide_parts.append(f"  - 주인공 가이드: {', '.join([f'#{g}' for g in ep_guides['protagonist']])}")
             if ep_guides["partner"]:
                 guide_parts.append(f"  - 상대방 가이드: {', '.join([f'#{g}' for g in ep_guides['partner']])}")
-            guides_desc = f"\n   * [타락 가이드 융합, 가장 중요함!] 아래 키워드를 기승전결 작성에 무조건 반영하세요!:\n" + "\n".join(guide_parts)
+            guides_desc = f"\n## 에피소드 가이드, 가장 중요함:  아래 주인공, 상대방 가이드를 잘 이해하고 기승전결 작성에 무조건 반영하세요!:\n" + "\n".join(guide_parts)
+
+        # EP{i} 현재 상태 추가
+        flow_status = getattr(config, 'flow_episode_status', None)
+        if flow_status and 0 < i <= len(flow_status):
+            guides_desc += f"\n\n## {name1}의 현재 상태 ##\n" + flow_status[i - 1]
 
         special_desc = ""
         if i in config.special_writing_req and config.special_writing_req[i]:
-            special_desc = f"\n   * [특별 묘사 요청] 다음 항목을 반드시 포함하여 에로틱하게 묘사할 것: {', '.join(config.special_writing_req[i])}"
+            special_desc = f"\n   * [특별 묘사 요청] 다음 항목을 반드시 포함하여 엣찌하게 묘사할 것: {', '.join(config.special_writing_req[i])}"
 
         events_desc = ""
         if i in ep_events_map:
@@ -688,7 +724,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
         elif crisis_start is not None and crisis_end is not None and crisis_start <= i <= crisis_end:
             genre_tone = "살짝 엣찌한 러브코메디 라이트 노벨(청소년향)"
         elif ending_start is not None and i >= ending_start:
-            genre_tone = "조건 더 엣찌한 청년향 러브코메디 라이트 노벨"
+            genre_tone = "제약없는 청년향 살짝 엣찌한 러브코메디 라이트 노벨"
 
         if slow_burn_start <= i <= slow_burn_end:
             prompt_tpl = prompts["epi_prompt_slowburn"]
@@ -697,14 +733,15 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
 
         prompt_epi = _build_prompt(
             prompt_tpl, i=i, **{'i-1': i-1}, guides_desc=guides_desc, special_desc=special_desc,
-            level_desc=level_desc, name1=name1, name2=name2, genre_tone=genre_tone
+            level_desc=level_desc, name1=name1, name2=name2, genre_tone=genre_tone,
+            import_point=getattr(config, 'import_point', '')
         )
-        ep_result = call_openai_for_plot(prompt_epi, messages=plot_messages, log_fn=log)
+        ep_result, plot_messages = call_openai_for_plot(prompt_epi, messages=plot_messages, log_fn=log)
         ep_text = ep_result.strip()
         all_episodes += "\n\n" + ep_text
 
         # EP{i} 생성 후 character_sheet 업데이트 → EP{i+1}로 저장 (다음 에피소드용)
-        if callback: callback(f"[캐릭터 시트] EPISODE {i+1} 시트 생성 (EP{i} 반영)...", {"total_episodes": total_episodes, "current_episode": i, "status": f"EPISODE {i+1} 시트 생성"})
+        if callback: callback(f"[캐릭터 시트] EPISODE {i+1} 시트 생성 (EP{i} 반영)...")
         current_proto = config.episode_protagonist_sheets[i - 2]
         current_part = config.episode_partner_sheets[i - 2]
         new_proto, new_part = _update_character_sheets_via_api(
@@ -729,14 +766,15 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
     # -------------------------------------------------------------------------
     # 5. 에이전트 리뷰 및 수정
     # -------------------------------------------------------------------------
-    if callback: callback("[3/3] 악덕 편집자 리뷰 및 수정 중...", {"total_episodes": total_episodes, "current_episode": total_episodes, "status": "에이전트 리뷰 중"})
+    if callback: callback("[3/3] 악덕 편집자 리뷰 및 수정 중...")
     review_prompt = _build_prompt(
         prompts["review_prompt"],
         half_episodes=total_episodes // 2, theme_info=theme_info,
         name1=name1, age1=age1, job1=job1, name2=name2, age2=age2, job2=job2,
-        corruption_elements=config.corruption_elements, all_episodes=all_episodes
+        corruption_elements=config.corruption_elements, all_episodes=all_episodes,
+        import_point=getattr(config, 'import_point', '')
     )
-    feedback = call_openai_for_client(prompt_text=review_prompt, log_fn=log)
+    feedback, _ = call_openai_for_plot(review_prompt, log_fn=log)
 
     def parse_feedback_per_episode(feedback_text, total_ep):
         ep_feedbacks = {}
@@ -769,7 +807,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
     refined_all_episodes = ""
 
     for i in range(1, total_episodes + 1):
-        if callback: callback(f"[수정 반영] 에피소드 {i}/{total_episodes} 수정 중...", {"total_episodes": total_episodes, "current_episode": i, "status": f"에피소드 {i} 수정 중"})
+        if callback: callback(f"[수정 반영] 에피소드 {i}/{total_episodes} 수정 중...")
         my_feedback = ep_feedbacks.get(i, "(수정사항 없음)")
         if "수정사항 없음" in my_feedback or "NONE" in my_feedback.upper():
             result = original_episodes[i-1] if i-1 < len(original_episodes) else ""
@@ -777,9 +815,10 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
             refine_prompt = _build_prompt(
                 prompts["refine_prompt"],
                 i=i, my_feedback=my_feedback,
-                original_episode=original_episodes[i-1] if i-1 < len(original_episodes) else ''
+                original_episode=original_episodes[i-1] if i-1 < len(original_episodes) else '',
+                import_point=getattr(config, 'import_point', '')
             )
-            result = call_openai_for_plot(refine_prompt, messages=plot_messages, log_fn=log)
+            result, plot_messages = call_openai_for_plot(refine_prompt, messages=plot_messages, log_fn=log)
 
         headered_result = f"##EPISODE {i}: {result}" if result and not result.strip().startswith(f"##EPISODE {i}") and not result.strip().startswith(f"## EPISODE {i}") else result
         if refined_all_episodes:
@@ -791,11 +830,11 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
 
     if not episodes or len(episodes) < total_episodes:
         retry_prompt = "\n출력 형식을 반드시 지켜주세요. EPISODE 1:, EPISODE 2: 형식으로 정확히 " + str(total_episodes) + "줄을 출력하세요."
-        if callback: callback("[추가] 재시도 중 (에피소드 부족)...", {"total_episodes": total_episodes, "current_episode": total_episodes, "status": "재시도 중"})
-        result = call_openai_for_plot(retry_prompt, messages=plot_messages, log_fn=log)
+        if callback: callback("[추가] 재시도 중 (에피소드 부족)...")
+        result, plot_messages = call_openai_for_plot(retry_prompt, messages=plot_messages, log_fn=log)
         episodes = parse_episodes(result, total_episodes)
 
-    if callback: callback("[완료] 에피소드 후처리 중...", {"total_episodes": total_episodes, "current_episode": total_episodes, "status": "후처리 중"})
+    if callback: callback("[완료] 에피소드 후처리 중...")
     refined_episodes = review_and_refine(episodes, template, resistance_positions, total_episodes)
 
     cs_log_file.close()
@@ -859,7 +898,7 @@ def review_and_refine(episodes, template, resistance_positions, total_episodes):
                 ep = f"이성이 흐려지고 쾌락에 타락하는 과정 진행"
         if ep_num in resistance_positions:
             if "저항" not in ep and "버티" not in ep and "거부" not in ep and "도망" not in ep:
-                ep = f"{ep} (마지막 남은 이성으로 살짝 저항하지만 엣찌해짐)"
+                ep = f"{ep} (마지막 남은 이성으로 필사적으로 타락에 저항하려 눈물을 흘리지만, 육체는 이미 엣찌하게 반응하고 마는 모순을 보임)"
         refined.append(f"##EPISODE {ep_num}: {ep}")
     return refined
 
@@ -875,8 +914,8 @@ def get_template_list():
 
 def quick_plot_gen(template_id, total_episodes=12, theme_msg=None, callback=None):
     if callback:
-        callback(f"템플릿: {TEMPLATES[template_id]['name']}", {"total_episodes": total_episodes, "current_episode": 0, "status": "템플릿 로드 중"})
+        callback(f"템플릿: {TEMPLATES[template_id]['name']}", 0)
     result = plot_gen_extended(template_id, total_episodes, theme_msg, callback=callback)
     if callback:
-        callback("완료", {"total_episodes": total_episodes, "current_episode": total_episodes, "status": "완료"})
+        callback("완료", 100)
     return result

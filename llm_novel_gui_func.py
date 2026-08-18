@@ -20,6 +20,8 @@ import importlib
 import hashlib
 import uuid
 import random as rand
+import subprocess
+import time
 import config
 import character_setup
 import story_gen
@@ -88,6 +90,14 @@ def save_config_state() -> None:
         logger.error("Config 저장 실패: %s", e)
 
 
+def _fix_special_writing_req_keys() -> None:
+    """JSON 직렬화 시 str로 바뀐 special_writing_req 키를 int로 복원합니다."""
+    if config.special_writing_req:
+        fixed = {int(k): v for k, v in config.special_writing_req.items()}
+        config.special_writing_req = fixed
+        logger.info("special_writing_req 키 int 변환: %s", fixed)
+
+
 def load_config_state() -> None:
     """JSON 파일에서 config 변수를 복구합니다."""
     if not os.path.exists(SAVE_STATE_FILE):
@@ -99,7 +109,17 @@ def load_config_state() -> None:
             saved_vars = json.loads(content)
         for key, val in saved_vars.items():
             setattr(config, key, val)
+        # JSON 직렬화 시 dict 키가 str로 바뀌므로 int로 복원
+        _fix_special_writing_req_keys()
         logger.info("Config 복구 성공: %s (%d개 변수)", SAVE_STATE_FILE, len(saved_vars))
+        # 로드 후 special_writing_req 값 확인 로깅
+        logger.info("[LOAD_STATE_CHECK] config.special_writing_req 전체: %s", config.special_writing_req)
+        if config.special_writing_req:
+            for ep_num in sorted(config.special_writing_req.keys()):
+                actions = config.special_writing_req[ep_num]
+                logger.info("[LOAD_STATE_CHECK] EP%d special_writing_req: %s (키 타입: %s)", ep_num, actions, type(ep_num).__name__)
+        else:
+            logger.info("[LOAD_STATE_CHECK] special_writing_req가 비어있음")
     except json.JSONDecodeError as e:
         logger.error("Config 복구 실패 (JSON 파싱 오류): %s", e)
     except Exception as e:
@@ -115,13 +135,16 @@ def reset_config_state() -> None:
         # 명령줄 인자 값 보존
         _cmd_job = getattr(config, 'cmd_job', None)
         _cmd_job2 = getattr(config, 'cmd_job2', None)
-        _inc_flag = getattr(config, 'inc_flag', 0)
+        _inc_flag = config.inc_flag
+        _selected_jinshugai_id = getattr(config, 'selected_jinshugai_id', None)
+        logger.info("[reset] 백업: id=%s, job=%s, job2=%s", _selected_jinshugai_id, _cmd_job, _cmd_job2)
         importlib.reload(config)
         # 명령줄 인자 값 복원
         config.cmd_job = _cmd_job
         config.cmd_job2 = _cmd_job2
         config.inc_flag = _inc_flag
-        logger.info("Config 초기화 완료 (모듈 리로드)")
+        config.selected_jinshugai_id = _selected_jinshugai_id
+        logger.info("[reset] 복원 확인: id=%s, job=%s, job2=%s", config.selected_jinshugai_id, config.cmd_job, config.cmd_job2)
     except Exception as e:
         logger.error("Config 초기화 실패: %s", e)
 
@@ -142,7 +165,17 @@ def load_config_export() -> str:
             return ""
         for key, val in exported_vars.items():
             setattr(config, key, val)
+        # YAML에도 int 키가 str로 저장될 수 있으므로 복원
+        _fix_special_writing_req_keys()
         logger.info("config_export.yaml에서 %d개 변수 로드 완료", len(exported_vars))
+        # 로드 후 special_writing_req 값 확인 로깅
+        logger.info("[LOAD_EXPORT_CHECK] config.special_writing_req 전체: %s", config.special_writing_req)
+        if config.special_writing_req:
+            for ep_num in sorted(config.special_writing_req.keys()):
+                actions = config.special_writing_req[ep_num]
+                logger.info("[LOAD_EXPORT_CHECK] EP%d special_writing_req: %s (키 타입: %s)", ep_num, actions, type(ep_num).__name__)
+        else:
+            logger.info("[LOAD_EXPORT_CHECK] special_writing_req가 비어있음")
         return "config_export.yaml"
     except Exception as e:
         logger.error("config_export.yaml 로드 실패: %s", e)
@@ -249,6 +282,128 @@ def build_episode_full_track_table() -> str:
 
 
 # -------------------------------------------------------------------------
+# 에피소드 생성/보완/스토리 생성 (GUI와 분리)
+# -------------------------------------------------------------------------
+
+def generate_episodes(callback=None):
+    """
+    에피소드 생성 (extended 모드 또는 표준 모드)
+
+    Args:
+        callback: 콜백 함수 (response_text, info)
+
+    Returns:
+        dict: {"success": bool, "result_text": str, "prog_msg": str}
+    """
+    try:
+        # Progression 생성
+        total_eps = config.total_episodes
+        old_stdout = sys.stdout
+        sys.stdout = io.StringIO()
+        try:
+            from persona import generate_ultimate_heroine_progression
+            result = generate_ultimate_heroine_progression(total_eps)
+        finally:
+            sys.stdout = old_stdout
+        progression_array = [f"{ep['animal_desc']} ({ep['matrix_desc']})" for ep in result["episodes"]]
+        config.progression_array = progression_array
+        config.persona_result = result
+        prog_msg = result.get("persona_text", f"Progression 생성 완료 (총 {len(progression_array)}개 에피소드)")
+
+        use_extended = config.get_json_value().get("extended", "no") == "yes"
+
+        if use_extended:
+            jinshugai_list = getattr(config, 'theme_jinshugai', None)
+            template_id = jinshugai_list[0].get('id', rand.randint(1, 10)) if jinshugai_list else rand.randint(1, 10)
+
+            old_stdout = sys.stdout
+            sys.stdout = io.StringIO()
+            try:
+                plot_result = plot_gen.plot_gen_extended(
+                    template_id=template_id,
+                    total_episodes=total_eps,
+                    theme_msg=getattr(config, 'plot', ''),
+                    breeds_data=getattr(config, 'theme_breeds', None),
+                    jinshugai_templates=getattr(config, 'theme_jinshugai', None),
+                    progression_events=getattr(config, 'theme_events', None),
+                    callback=callback
+                )
+            finally:
+                sys.stdout = old_stdout
+
+            episodes = split_episodes(plot_result)
+            for i in range(total_eps):
+                config.episode_content[i] = episodes[i] if i < len(episodes) else ""
+                config.episode_track[i] = True
+            config.episode_gen_flag = True
+
+            return {"success": True, "result_text": plot_result, "prog_msg": prog_msg}
+        else:
+            old_stdout = sys.stdout
+            sys.stdout = io.StringIO()
+            try:
+                result_text = story_gen.episode_gen()
+            finally:
+                sys.stdout = old_stdout
+
+            config.result_text = result_text
+            episodes = split_episodes(result_text)
+            for i in range(total_eps):
+                config.episode_content[i] = episodes[i] if i < len(episodes) else ""
+                config.episode_track[i] = True
+            config.episode_gen_flag = True
+
+            return {"success": True, "result_text": result_text, "prog_msg": prog_msg}
+
+    except Exception as e:
+        return {"success": False, "result_text": str(e), "prog_msg": ""}
+
+
+def generate_refine(callback=None):
+    """
+    에피소드 요약 생성 및 보완
+
+    Args:
+        callback: 콜백 함수 (response_text, info)
+
+    Returns:
+        dict: {"success": bool, "out_txt": str, "episode_count": int}
+    """
+    try:
+        final_result = story_gen.episode_summary_gen(callback=callback)
+        episodes = split_episodes(final_result)
+        out_txt = f"## EPISODE 1 ##\n\n{config.episode_content[0]}" if (config.episode_content and config.episode_content[0]) else (episodes[0] if episodes else final_result)
+
+        return {"success": True, "out_txt": out_txt, "episode_count": len(episodes)}
+
+    except Exception as e:
+        return {"success": False, "out_txt": str(e), "episode_count": 0}
+
+
+def generate_story(ep_num: int, callback=None):
+    """
+    전체 스토리 생성
+
+    Args:
+        ep_num: 0=전체, -1=이어서, 그외=단일 EP
+        callback: 콜백 함수 (response_text, info)
+
+    Returns:
+        dict: {"success": bool, "out_txt": str, "mode_text": str}
+    """
+    try:
+        mode_text = "전체 재생성" if ep_num == 0 else "이어서 생성" if ep_num == -1 else f"EP {ep_num} 단일 생성"
+        result = full_episode_gen.full_episode_gen(ep_num=ep_num, callback=callback)
+        table = build_episode_full_track_table()
+        out_txt = f"{table}"
+
+        return {"success": True, "out_txt": out_txt, "mode_text": mode_text}
+
+    except Exception as e:
+        return {"success": False, "out_txt": str(e), "mode_text": ""}
+
+
+# -------------------------------------------------------------------------
 # Config 파일 내보내기/복구
 # -------------------------------------------------------------------------
 
@@ -303,6 +458,8 @@ def export_config_to_file(filepath: str) -> str:
             "current_episode_index",
             # progression / 플래그
             "progression_array",
+            # Flow Control
+            "flow_stats", "flow_episode_status",
             "episode_gen_flag",
             # Progress tracking
             "plot_hash", "theme_auto_complete_flag", "progress_step",
@@ -313,6 +470,12 @@ def export_config_to_file(filepath: str) -> str:
             # ANIMA 태그 배열
             "face_tag", "makeup_tag", "marks_tag", "body_tag",
             "bodystyle_tag", "exposure_tag", "p_exposure_tag", "background_tag",
+            # ANIMA char_prompts_lines 배열
+            "char_prompts_lines_hair", "char_prompts_lines_body",
+            "char_prompts_lines_exposure", "char_prompts_lines_clothes",
+            "char_prompts_lines_marks", "char_prompts_lines_bodystyle",
+            "char_prompts_lines_p_exposure", "char_prompts_lines_background",
+            "char_prompts_lines_background_effect",
             # ANIMA 스칼라
             "body_shape", "current_level", "episode_num", "episode_step",
             # ANIMA 표현/변화 배열
@@ -356,11 +519,21 @@ def restore_config_from_file(filepath: str) -> str:
         return f"파일을 찾을 수 없습니다: {filepath}"
     try:
         with open(filepath, "r", encoding="utf-8") as f:
-            # yaml.safe_load는 JSON도 YAML 서브셋으로 자동 파싱
-            saved_vars = yaml.safe_load(f)
+            # yaml.FullLoader 사용: !!python/tuple 등 Python 전용 태그도 파싱
+            saved_vars = yaml.load(f, Loader=yaml.FullLoader)
         for key, val in saved_vars.items():
             setattr(config, key, val)
+        # YAML/JSON 직렬화 시 dict 키가 str로 바뀔 수 있으므로 int로 복원
+        _fix_special_writing_req_keys()
         logger.info("설정 복구 성공: %s (총 %d개 변수)", filepath, len(saved_vars))
+        # 복구 후 special_writing_req 값 확인 로깅
+        logger.info("[RESTORE_CHECK] config.special_writing_req 전체: %s", config.special_writing_req)
+        if config.special_writing_req:
+            for ep_num in sorted(config.special_writing_req.keys()):
+                actions = config.special_writing_req[ep_num]
+                logger.info("[RESTORE_CHECK] EP%d special_writing_req: %s (키 타입: %s)", ep_num, actions, type(ep_num).__name__)
+        else:
+            logger.info("[RESTORE_CHECK] special_writing_req가 비어있음")
         return f"설정 복구 성공: {filepath} (총 {len(saved_vars)}개 변수)"
     except Exception as e:
         logger.error("설정 복구 실패: %s", e)
@@ -437,17 +610,17 @@ def archive_to_done(result_dir: str = "result", comfyui_dir: str = None, done_di
         except Exception as e:
             logger.info(f"ComfyUI 큐 대기 실패: {e} - 즉시 파일 복사")
 
-        # 4. ComfyUI output의 .png 파일 복사 (하위 디렉토리 포함)
-        png_count = 0
-        if os.path.exists(comfyui_dir):
-            for root, dirs, files in os.walk(comfyui_dir):
-                for fname in files:
-                    if fname.lower().endswith(".png"):
-                        src = os.path.join(root, fname)
-                        dst = os.path.join(dest_dir, fname)
-                        import shutil
-                        shutil.copy2(src, dst)
-                        png_count += 1
+        ## 4. ComfyUI output의 .png 파일 복사 (하위 디렉토리 포함)
+        #png_count = 0
+        #if os.path.exists(comfyui_dir):
+        #    for root, dirs, files in os.walk(comfyui_dir):
+        #        for fname in files:
+        #            if fname.lower().endswith(".png"):
+        #                src = os.path.join(root, fname)
+        #                dst = os.path.join(dest_dir, fname)
+        #                import shutil
+        #                shutil.copy2(src, dst)
+        #                png_count += 1
 
         logger.info("아카이브 완료: %s (md=%d, png=%d)", dest_dir, md_count, png_count)
         return f"아카이브 완료: {dest_dir} (markdown={md_count}개, png={png_count}개)"
@@ -581,7 +754,7 @@ def save_progress_state(hash_code: str, step: int, plot_json: dict = None) -> st
     Args:
         hash_code: plot_hash 코드
         step: 진행 단계 (0=초기, 1=플롯완료, 2=에피소드완료, 3=스토리완료)
-        plot_json: plot.json 데이터 (None이면 현재 config.json_value 사용)
+        plot_json: plot.json 데이터 (None이면 현재 config.get_json_value() 사용)
 
     Returns:
         저장된 파일 경로
@@ -607,7 +780,7 @@ def save_progress_state(hash_code: str, step: int, plot_json: dict = None) -> st
         if plot_json:
             state["plot_json"] = plot_json
         else:
-            state["plot_json"] = config.json_value
+            state["plot_json"] = config.get_json_value()
 
         # 기존 파일 삭제 후 새로 생성
         if os.path.exists(filepath):
@@ -889,7 +1062,14 @@ def get_progress_summary() -> str:
 
 
 # -------------------------------------------------------------------------
-# 전체 자동 실행 시퀀스 (9번 메뉴)
+# ANIMA 생성 (10번, 11번 메뉴 공용)
+# -------------------------------------------------------------------------
+
+def run_anima_gen(total_episodes: int, ep_num: int = 0, callback=None):
+    return 0
+
+# -------------------------------------------------------------------------
+# 전체 자동 실행 시퀀스 (10번 메뉴)
 # -------------------------------------------------------------------------
 
 _menu1_logger = logging.getLogger("menu1_flow")
@@ -902,7 +1082,7 @@ def run_auto_sequence(
     callback=None,
 ):
     """
-    전체 자동 실행 시퀀스 (9번 메뉴 로직).
+    전체 자동 실행 시퀀스 (10번 메뉴 로직).
 
     흐름:
         1. 초기화 (config 리로드 + 캐릭터 랜덤 + 테마 생성)
@@ -935,12 +1115,12 @@ def run_auto_sequence(
         # 1. 초기화
         # =========================================================
         _menu1_logger.info("=" * 50)
-        _menu1_logger.info("[9번 메뉴] 전체 자동 실행 시작")
+        _menu1_logger.info("[10번 메뉴] 전체 자동 실행 시작")
         cb("init", "초기화 중...", "[전체 자동 실행]\n\n1. 초기화 중...")
 
-        _menu1_logger.info("[9번] 1단계: 초기화 시작")
+        _menu1_logger.info("[10번] 1단계: 초기화 시작")
         saved_jinshugai_id = getattr(config, 'selected_jinshugai_id', None)
-        saved_inc_flag = getattr(config, 'inc_flag', 0)
+        saved_inc_flag = config.inc_flag
         reset_config_state()
         config.selected_jinshugai_id = saved_jinshugai_id
         config.inc_flag = saved_inc_flag
@@ -948,18 +1128,24 @@ def run_auto_sequence(
         # Progress 디렉토리 초기화 + 새 hash 생성
         reset_progress()
         new_hash = generate_plot_hash()
-        _menu1_logger.info(f"[9번] 새 hash 생성: {new_hash}")
+        _menu1_logger.info(f"[10번] 새 hash 생성: {new_hash}")
 
         character_setup.random_setup_all()
 
-        use_theme_auto = config.json_value.get("theme_auto", "no") == "yes"
-        _menu1_logger.info(f"[9번] theme_auto={use_theme_auto}")
+        use_theme_auto = config.get_json_value().get("theme_auto", "no") == "yes"
+        _menu1_logger.info(f"[10번] theme_auto={use_theme_auto}")
         if use_theme_auto:
             # cmd_job/cmd_job2 적용을 위해 job_and_age_init 호출
             character_setup.job_and_age_init()
             import theme_gen_auto
-            theme_result = theme_gen_auto.theme_gen_auto(
+            step1_result = theme_gen_auto.theme_gen_auto_step1(
                 "테마 자동 생성 모드",
+                num_episodes=config.total_episodes,
+                log_fn=logger.info,
+            )
+            theme_result = theme_gen_auto.theme_gen_auto_step2(
+                "테마 자동 생성 모드",
+                step1_result,
                 num_episodes=config.total_episodes,
                 log_fn=logger.info,
             )
@@ -971,7 +1157,7 @@ def run_auto_sequence(
         prog_msg = generate_and_parse_progression()
         config.episode_gen_flag = False
         _menu1_logger.info(
-            f"[9번] 초기화 완료 - name={config.name}, "
+            f"[10번] 초기화 완료 - name={config.name}, "
             f"age={getattr(config, 'age', 'N/A')}, "
             f"job={getattr(config, 'job', 'N/A')}"
         )
@@ -979,7 +1165,7 @@ def run_auto_sequence(
         # theme_auto 모드이면 1번 완료 처리 (progress 저장 + theme 변수 YAML 저장)
         if use_theme_auto:
             complete_theme_auto()
-            _menu1_logger.info(f"[9번] theme_auto 1번 완료 저장됨 (hash={config.plot_hash})")
+            _menu1_logger.info(f"[10번] theme_auto 1번 완료 저장됨 (hash={config.plot_hash})")
 
         export_config_to_file(export_path)
         cb("init", "초기화 완료", "[전체 자동 실행]\n\n1. 초기화 완료")
@@ -987,23 +1173,23 @@ def run_auto_sequence(
         # =========================================================
         # 2. 플롯 생성
         # =========================================================
-        _menu1_logger.info("[9번] 2단계: 플롯 생성 시작")
+        _menu1_logger.info("[10번] 2단계: 플롯 생성 시작")
         cb("plot", "1번: 플롯 생성 중...", "[전체 자동 실행]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 중...")
 
         character_setup.job_and_age_init()
-        _menu1_logger.info(f"[9번] job_and_age_init 완료 - job={config.job}, age={getattr(config, 'age', 'N/A')}")
-        character_setup.character_init(config.sex, config.json_value)
-        _menu1_logger.info("[9번] character_init 완료")
-        character_setup.archetype_setup(config.json_value)
-        _menu1_logger.info("[9번] archetype_setup 완료")
-        character_setup.personality_init(config.json_value)
-        _menu1_logger.info(f"[9번] personality_init 완료 - personality_real={config.personality_real}")
+        _menu1_logger.info(f"[10번] job_and_age_init 완료 - job={config.job}, age={getattr(config, 'age', 'N/A')}")
+        character_setup.character_init(config.sex, config.get_json_value())
+        _menu1_logger.info("[10번] character_init 완료")
+        character_setup.archetype_setup(config.get_json_value())
+        _menu1_logger.info("[10번] archetype_setup 완료")
+        character_setup.personality_init(config.get_json_value())
+        _menu1_logger.info(f"[10번] personality_init 완료 - personality_real={config.personality_real}")
         plot_text = story_gen.generate_plot()
-        _menu1_logger.info(f"[9번] generate_plot 완료 (길이={len(plot_text)})")
+        _menu1_logger.info(f"[10번] generate_plot 완료 (길이={len(plot_text)})")
 
         # theme_agent
-        use_theme_agent = config.json_value.get("theme_agent", "no") == "yes"
-        _menu1_logger.info(f"[9번] theme_agent={use_theme_agent}")
+        use_theme_agent = config.get_json_value().get("theme_agent", "no") == "yes"
+        _menu1_logger.info(f"[10번] theme_agent={use_theme_agent}")
         if use_theme_agent and not use_theme_auto:
             import theme_gen as theme_gen_module
             story_info = f"""
@@ -1020,7 +1206,7 @@ def run_auto_sequence(
             config.theme_jinshugai = theme_result["jinshugai"]
             config.theme_events = theme_result["events"]
             config.plot_result = plot_text + f"\n\n[업데이트된 테마]\n{theme_result['theme']}"
-            _menu1_logger.info("[9번] theme_agent 업데이트 완료")
+            _menu1_logger.info("[10번] theme_agent 업데이트 완료")
 
         export_config_to_file(export_path)
         cb("plot", "1번: 플롯 생성 완료", "[전체 자동 실행]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 완료")
@@ -1028,12 +1214,12 @@ def run_auto_sequence(
         # =========================================================
         # 3. 에피소드 생성
         # =========================================================
-        _menu1_logger.info("[9번] 3단계: 에피소드 생성 시작")
+        _menu1_logger.info("[10번] 3단계: 에피소드 생성 시작")
         cb("episode", "4번: 에피소드 생성 중...", "[전체 자동 실행]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 완료\n\n3. 4번: 에피소드 생성 중...")
 
         prog_msg = generate_and_parse_progression()
-        use_extended = config.json_value.get("extended", "no") == "yes"
-        _menu1_logger.info(f"[9번] extended={use_extended}")
+        use_extended = config.get_json_value().get("extended", "no") == "yes"
+        _menu1_logger.info(f"[10번] extended={use_extended}")
 
         if use_extended:
             jinshugai_list = getattr(config, "theme_jinshugai", None)
@@ -1102,11 +1288,11 @@ def run_auto_sequence(
             result_lines.append("")
             config.result_text = "\n".join(result_lines)
             config.episode_gen_flag = True
-            _menu1_logger.info(f"[9번] extended 에피소드 생성 완료 - {len(episodes_parsed)}개")
+            _menu1_logger.info(f"[10번] extended 에피소드 생성 완료 - {len(episodes_parsed)}개")
         else:
             # 표준 모드
             _menu1_logger.info(
-                f"[9번] 표준 모드 episode_gen 호출 시작 - episode_files={len(episode_files)}개"
+                f"[10번] 표준 모드 episode_gen 호출 시작 - episode_files={len(episode_files)}개"
             )
             ep_gen = story_gen.episode_gen
             if episode_files:
@@ -1119,23 +1305,23 @@ def run_auto_sequence(
                     ep_gen(filename_override=filename)
                 else:
                     ep_gen()
-                _menu1_logger.info(f"[9번] episode_gen(filename={filename}) 완료")
+                _menu1_logger.info(f"[10번] episode_gen(filename={filename}) 완료")
             else:
                 ep_gen()
-                _menu1_logger.info("[9번] episode_gen() 완료")
+                _menu1_logger.info("[10번] episode_gen() 완료")
             _menu1_logger.info(
-                f"[9번] episode_gen_flag={config.episode_gen_flag}, "
+                f"[10번] episode_gen_flag={config.episode_gen_flag}, "
                 f"result_text 길이={len(config.result_text) if config.result_text else 0}"
             )
             for i in range(len(config.episode_content)):
                 content_preview = config.episode_content[i][:60] if config.episode_content[i] else "EMPTY"
-                _menu1_logger.info(f"[9번] episode_content[{i}]: {content_preview}...")
+                _menu1_logger.info(f"[10번] episode_content[{i}]: {content_preview}...")
 
         # 에피소드 내용과 캐릭터 시트를 progress 디렉토리에 저장
         plot_hash = getattr(config, 'plot_hash', '')
         if plot_hash:
             saved_ep_files = save_episodes_and_sheets_to_progress(plot_hash)
-            _menu1_logger.info(f"[9번] progress 저장 완료: {len(saved_ep_files)}개 파일")
+            _menu1_logger.info(f"[10번] progress 저장 완료: {len(saved_ep_files)}개 파일")
 
         export_config_to_file(export_path)
         cb("episode", "4번: 에피소드 생성 완료", "[전체 자동 실행]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 완료\n\n3. 4번: 에피소드 생성 완료")
@@ -1143,7 +1329,7 @@ def run_auto_sequence(
         # =========================================================
         # 4. 스토리 생성
         # =========================================================
-        _menu1_logger.info("[9번] 4단계: 스토리 생성 시작")
+        _menu1_logger.info("[10번] 4단계: 스토리 생성 시작")
         cb("story", "6번: 스토리 생성 중...", "[전체 자동 실행]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 완료\n\n3. 4번: 에피소드 생성 완료\n\n4. 6번: 스토리 생성 중...")
 
         def stream_callback(text, info_lines=None):
@@ -1157,58 +1343,35 @@ def run_auto_sequence(
                 cb("story", f"생성중... {updated_count}/{config.total_episodes}", progress_text)
 
         final_result = full_episode_gen.full_episode_gen(ep_num=0, callback=stream_callback)
-        _menu1_logger.info(f"[9번] full_episode_gen 완료 - episode_full_track={list(config.episode_full_track)}")
+        _menu1_logger.info(f"[10번] full_episode_gen 완료 - episode_full_track={list(config.episode_full_track)}")
         cb("story", "6번: 스토리 생성 완료", "[전체 자동 실행]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 완료\n\n3. 4번: 에피소드 생성 완료\n\n4. 6번: 스토리 생성 완료")
 
         # =========================================================
         # 5. ANIMA 생성 (anima_enb 활성화 시)
         # =========================================================
         if anima_enb:
-            _menu1_logger.info("[9번] 5단계: ANIMA 생성 시작")
-            cb("anima", "10번: ANIMA 생성 중...", "[전체 자동 실행]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 완료\n\n3. 4번: 에피소드 생성 완료\n\n4. 6번: 스토리 생성 완료\n\n5. 10번: ANIMA 생성 중...")
+            _menu1_logger.info("[10번] 5단계: ANIMA 생성 시작")
+            cb("anima", "ANIMA 생성 중...", "[전체 자동 실행]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 완료\n\n3. 4번: 에피소드 생성 완료\n\n4. 6번: 스토리 생성 완료\n\n5. ANIMA 생성 중...")
 
-            client = openAPI_control.get_openai_client()
-            anima_gen.anima_setup(config.json_value)
+            anima_result = run_anima_gen(
+                total_episodes=config.total_episodes,
+                callback=lambda step, status_msg, content_text: cb("anima", status_msg,
+                    f"[전체 자동 실행]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 완료\n\n3. 4번: 에피소드 생성 완료\n\n4. 6번: 스토리 생성 완료\n\n5. ANIMA 생성 중... ({status_msg})")
+            )
 
-            for ep_idx in range(config.total_episodes):
-                ep_num = ep_idx + 1
-                init_result = anima_gen.init_anima_tags(ep_idx, client, config.json_value)
-                if isinstance(init_result, dict) and init_result["status"] != "missing":
-                    anima_gen.anima_gen_standing(
-                        episode=ep_idx,
-                        messages_history_rp=config.messages_history,
-                        json_value=config.json_value,
-                        client_rp=client,
-                        sex=config.sex,
-                        name=config.name,
-                        name2=config.name2,
-                    )
-                    # 기-승-전-결 4회 호출
-                    for step_num in range(1, 5):
-                        config.episode_step = f"{step_num}"
-                        _menu1_logger.info(f"[9번] ANIMA simple EP{ep_num} step={config.episode_step}")
-                        anima_gen.anima_gen_simple(
-                            episode=ep_idx,
-                            messages_history_rp=config.messages_history,
-                            json_value=config.json_value,
-                            client_rp=client,
-                            sex=config.sex,
-                            name=config.name,
-                            name2=config.name2,
-                        )
-                cb("anima", f"ANIMA EP{ep_num} 완료",
-                   f"[전체 자동 실행]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 완료\n\n3. 4번: 에피소드 생성 완료\n\n4. 6번: 스토리 생성 완료\n\n5. 10번: ANIMA 생성 중... (EP{ep_num})")
+            if not anima_result["success"]:
+                _menu1_logger.info(f"[10번] ANIMA 생성 오류: {anima_result['progress_log'][-1]}")
 
         # =========================================================
         # 완료
         # =========================================================
-        _menu1_logger.info("[9번] 전체 자동 실행 완료!")
+        _menu1_logger.info("[10번] 전체 자동 실행 완료!")
         content_text = f"[전체 자동 실행 완료]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 완료\n\n3. 4번: 에피소드 생성 완료\n\n4. 6번: 스토리 생성 완료\n\n총 {config.total_episodes}개의 에피소드가 result/ 디렉토리에 저장되었습니다."
         if anima_enb:
             content_text += "\n\n5. ANIMA 이미지 생성 완료"
 
         # 아카이브: result/의 markdown과 ComfyUI output의 png를 done/book{N}/로 이동
-        _menu1_logger.info("[9번] 아카이브 시작...")
+        _menu1_logger.info("[10번] 아카이브 시작...")
         archive_result = archive_to_done()
         _menu1_logger.info(archive_result)
         content_text += f"\n\n6. 아카이브 완료: {archive_result}"
@@ -1223,7 +1386,7 @@ def run_auto_sequence(
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
-        _menu1_logger.info(f"[9번] 오류 발생: {e}\n\n{tb}")
+        _menu1_logger.info(f"[10번] 오류 발생: {e}\n\n{tb}")
         cb("done", f"오류: {e}", f"전체 자동 실행 중 오류 발생:\n{e}\n\n{tb}")
         return {
             "success": False,

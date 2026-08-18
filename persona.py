@@ -517,8 +517,7 @@ RELATIONSHIP_START_MAP = {
 # ==========================================
 # 🌟 stage_names (7단계)
 # ==========================================
-STAGE_NAMES = ["혐오", "경계", "보통", "친밀", "애정", "집착", "권속화"]
-
+STAGE_NAMES = ["혐오", "경계", "보통", "친밀", "애정", "집착", "메가데레화"]
 
 def _get_category(score):
     """H/L score를 low/mid/high 범주로 변환"""
@@ -533,7 +532,7 @@ def _get_category(score):
 def _get_stage_name(h_cat, l_cat):
     """9구역 범주를 기존 stage_names로 매핑"""
     if l_cat == "high" and h_cat == "high":
-        return "권속화"
+        return "메가데레화"
     elif l_cat == "high":
         return "집착"
     elif h_cat == "high":
@@ -713,7 +712,7 @@ def generate_ultimate_heroine_progression(num_episodes=10, fixed_breeds=None, re
 
         # 마지막 에피소드: breed_tag 덮어쓰기
         if i == num_episodes - 1:
-            breed_tag = f"완전히 타락한 {breed_B}" if is_hybrid else f"완전히 타락한 {breed_A}"
+            breed_tag = f"완전히 메가데레가 된 {breed_B}" if is_hybrid else f"완전히 메가데레가 된 {breed_A}"
 
         # 에피소드 데이터 저장
         episode_data = {

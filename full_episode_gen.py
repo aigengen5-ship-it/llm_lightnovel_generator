@@ -5,8 +5,9 @@ import os
 import re
 import time
 import json
+import traceback
 from common_def import get_particles
-from openAPI_control import call_openai_for_client, call_openai_api
+from openAPI_control import call_openai_for_plot
 
 # =============================================================================
 # episode/ 디렉토리에서 데이터 로드 (prompts.txt, variables.json)
@@ -459,9 +460,7 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
             elif crisis_start is not None and crisis_end is not None and crisis_start <= current_ep <= crisis_end:
                 genre_tone_hint = "## 장르 톤\n* 살짝 엣찌한 러브코메디 라이트 노벨(청소년향) 스타일로 작성하세요."
             elif ending_start is not None and current_ep >= ending_start:
-                genre_tone_hint = "## 장르 톤\n* 청년을 위한 엣찌한 러브코메디 라이트 노벨 스타일로 작성하세요."
-
-            config.messages_history = []
+                genre_tone_hint = "## 장르 톤\n* 청년을 위한 수위를 지키는 엣찌한 러브코메디 라이트 노벨 스타일로 작성하세요."
 
             ep_idx = current_ep - 1
             if proto_sheets and ep_idx < len(proto_sheets) and proto_sheets[ep_idx]:
@@ -523,7 +522,8 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
                 prompt_extended = ""
 
             prompt_ending = f"""
-**중요**: 이 에피소드는 마지막 에피소드임, 소설의 마지막이라는 느낌을 줄 수 있는 서술을 꼭 사용할 것""" if current_ep == config.total_episodes else ""
+**중요**: 이 에피소드는 마지막 에피소드임, 소설의 마지막이라는 느낌을 줄 수 있는 서술을 꼭 사용할 것.
+모든 갈등이 해결되고 알콩달콩한 모습을 묘사할 것.""" if current_ep == config.total_episodes else ""
 
             pov_ki = _get_pov_template("ki", config.name, config.name2)
             pov_seung = _get_pov_template("seung", config.name, config.name2)
@@ -532,6 +532,16 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
             pov_map = {"기": pov_ki, "승": pov_seung, "전": pov_jeon, "결": pov_gyeol}
 
             prompts = _load_prompts()
+            # episode_guide 생성
+            episode_guide = ""
+            if current_ep in config.ep_corruption_guides_map:
+                ep_guides = config.ep_corruption_guides_map[current_ep]
+                guide_parts = []
+                if ep_guides.get("protagonist", []):
+                    guide_parts.append(f"  - 주인공 가이드: {', '.join([f'#{g}' for g in ep_guides['protagonist']])}")
+                if ep_guides.get("partner", []):
+                    guide_parts.append(f"  - 상대방 가이드: {', '.join([f'#{g}' for g in ep_guides['partner']])}")
+                episode_guide = "\n## 에피소드 가이드, 가장 중요함:  아래 주인공, 상대방 가이드를 잘 이해하고 기승전결 작성에 무조건 반영하세요!:\n" + "\n".join(guide_parts)
             user_prompt = _build_prompt(
                 prompts["part1_ki"],
                 prompt_ending=prompt_ending, protagonist_sheet=protagonist_sheet,
@@ -544,10 +554,12 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
                 first_event=getattr(config, 'first_event', ''),
                 second_event=getattr(config, 'second_event', ''),
                 import_point=getattr(config, 'import_point', ''),
-                genre_tone_hint=genre_tone_hint
+                genre_tone_hint=genre_tone_hint,
+                episode_guide=episode_guide
             )
             log(f"[EP{current_ep}] [PROMPT_1] Part 1: Introduction (1차/2차 호출 통합)")
-            part1_result = call_openai_api(user_prompt, callback=callback, info_lines=info_lines)
+            messages = [{"role": "system", "content": config.system_prompt}]
+            part1_result, messages = call_openai_for_plot(user_prompt, messages=messages, log_fn=log)
             log(f"[EP{current_ep}] [USER]\n{user_prompt}...")
             log(f"[EP{current_ep}] [AI]\n{part1_result}...")
             full_response = f"## EPISODE {current_ep} ##\n" + part1_result
@@ -581,7 +593,7 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
                 genre_tone_hint=genre_tone_hint
             )
             log(f"[EP{current_ep}] [PROMPT_2] Part 2: Development")
-            part2_result = call_openai_api(user_prompt, callback=callback, info_lines=info_lines)
+            part2_result, messages = call_openai_for_plot(user_prompt, messages=messages, log_fn=log)
             log(f"[EP{current_ep}] [USER]\n{user_prompt}...")
             log(f"[EP{current_ep}] [AI]\n{part2_result}...")
             full_response += "\n\n------------------------\n#####\n\n" + part2_result
@@ -602,7 +614,6 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
 [작성 가이드]
 * 결정적 자극/접촉: 이번 화의 목표인 '선'을 넘는 순간입니다.
 * 이성과 본능의 충돌: 이 찰나의 순간을 '시간을 멈춘 것처럼' 길게 묘사합니다.
-* 청년을 위한 엣찌한 장면인 경우 매우 디테일하게 행동, 신음소리를 아주 엣찌한 표현할 것.
 * 감각적 디테일과 심리적 붕괴에 집중하세요. 쾌락으로 인해 이성의 끈이 끊어지고 본능이 폭발하는 순간을 '시간을 느리게 확장하여' 묘사하세요. 수치심이 쾌감으로 역전되는 적나라한 묘사가 필수입니다.
 * 일본 라이트노벨 특유의 농밀한 심리 묘사, 질척한 신체 감각 묘사를 적극 활용하세요.
 * 신음 소리("하아, 읏...", "아앗, 큭...")를 대사와 지문에 자연스럽게 섞으세요."""
@@ -618,7 +629,7 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
                 genre_tone_hint=genre_tone_hint
             )
             log(f"[EP{current_ep}] [PROMPT_3] Part 3: Climax")
-            part3_result = call_openai_api(user_prompt, callback=callback, info_lines=info_lines)
+            part3_result, messages = call_openai_for_plot(user_prompt, messages=messages, log_fn=log)
             log(f"[EP{current_ep}] [USER]\n{user_prompt}...")
             log(f"[EP{current_ep}] [AI]\n{part3_result}...")
             full_response += "\n\n------------------------\n#####\n\n" + part3_result
@@ -656,7 +667,7 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
                 genre_tone_hint=genre_tone_hint
             )
             log(f"[EP{current_ep}] [PROMPT_4] Part 4: Conclusion (진행도={int(progress_ratio*100)}%, 감정선={protagonist_mood[:20]}..., 파트너행동={partner_action[:20]}...)")
-            part4_result = call_openai_api(user_prompt, callback=callback, info_lines=info_lines)
+            part4_result, messages = call_openai_for_plot(user_prompt, messages=messages, log_fn=log)
             log(f"[EP{current_ep}] [USER]\n{user_prompt}...")
             log(f"[EP{current_ep}] [AI]\n{part4_result}...")
             full_response += "\n\n------------------------\n#####\n\n" + part4_result
@@ -667,112 +678,125 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
             # 7차 호출: 전체 리뷰
             info_lines["status"] = f"[EP{current_ep}/{config.total_episodes}] 리뷰 중..."
 
-            if current_ep <= 3:
-                prompt_extended = f"""
-중요: 현재 에피소드 {current_ep}는 초반이므로 처음부터 엣찌한 필요는 절대 없다는 것을 명심할 것!!!
+            agent_2nd = config.get_json_value().get("agent_2nd", "no")
+
+            if agent_2nd == "no":
+                # agent_2nd=no: 리뷰/재작성 없이 바로 markdown 출력
+                log(f"[EP{current_ep}] agent_2nd=no이므로 리뷰/재작성 skip, markdown 바로 출력")
+                revised_content = chapter_content
+            else:
+                if current_ep <= 3:
+                    prompt_extended = f"""
+중요: 현재 에피소드 {current_ep}는 초반이므로 스토리 수위를 꼭 조절할 것.
 독자는 처음부터 스토리 전개 없이 막나가는 걸 원하지는 않음.
 1. 각 파트의 역할이 적절한가?
 2. 파트 간의 흐름이 자연스러운가? (연결고리, 장소/시간 변화)
 3. {honorific_hint} (호칭 변화가 잘 지켜졌는가?)
 """
-            else:
-                prompt_extended = f"""
-중요: 현재 에피소드 {current_ep}는 이제 스토리 중반을 넘었으니 제한없이 독자를 만족시켜야 함.
+                elif current_ep == config.total_episodes:
+                    prompt_extended = f"""
+중요: 이 에피소드는 엔딩/에필로그임. 따라서 모든 갈등이 해결되고 알콩달콩한 모습을 그릴 것.
 1. 각 파트의 역할이 적절한가?
 2. 파트 간의 흐름이 자연스러운가? (연결고리, 장소/시간 변화)
-3. 은유적이고 얌전한 표현이 쓰이지 않았는가? (조금 더 직설적이고 엣찌한 단어로 교체할 것을 지시할 것)
-4. 1인칭 주인공의 심리 묘사(수치심 -> 쾌락 굴복)가 생생하게 담겼는가?
+3. {honorific_hint} (호칭 변화가 잘 지켜졌는가?)
+"""
+                else:
+                    prompt_extended = f"""
+중요: 현재 에피소드 {current_ep}는 이제 스토리 중반을 넘었으니 러브코메디 느낌으로 독자를 만족시켜야 함.
+1. 각 파트의 역할이 적절한가?
+2. 파트 간의 흐름이 자연스러운가? (연결고리, 장소/시간 변화)
+3. 은유적이고 얌전한 표현을 사용할 것.
+4. 1인칭 주인공의 심리 묘사(수치심 -> 메가데레)가 생생하게 담겼는가?
 5. {honorific_hint} (호칭 변화가 잘 지켜졌는가?)
 6. 신음 소리와 의성어/의태어가 충분히 자연스러운가?
 7. 대사 비율이 50% 이상인가? 대사가 짧고 거친가?
-8. 만일 엣찌한 장면이 생략된 경우 꼭(!) 글자 제한없이 쓰라고 지시할 것.
 """
 
-            # =====================================================================
-            # 7차 호출: 편집자 1번 호출로 전체 읽고 기-승-전-결 각각 리뷰 출력
-            # =====================================================================
+                # =====================================================================
+                # 7차 호출: 편집자 1번 호출로 전체 읽고 기-승-전-결 각각 리뷰 출력
+                # =====================================================================
 
-            # 기-승-전-결로 분할
-            sections = chapter_content.split("####")
-            # 안전장치: sections가 4개 미만이면 빈 문자열로 채움 (IndexError 방지)
-            while len(sections) < 4:
-                sections.append("")
-            section_names = VARS["section_names"]
+                # 기-승-전-결로 분할
+                sections = chapter_content.split("####")
+                # 안전장치: sections가 4개 미만이면 빈 문자열로 채움 (IndexError 방지)
+                while len(sections) < 4:
+                    sections.append("")
+                section_names = VARS["section_names"]
 
-            # 유효한 섹션만 필터링 (비어있는 섹션 제외)
-            valid_sections = []
-            for i, sec in enumerate(sections):
-                sec_stripped = sec.strip()
-                if sec_stripped:
-                    valid_sections.append((section_names[i] if i < len(section_names) else f"파트{i+1}", sec_stripped))
+                # 유효한 섹션만 필터링 (비어있는 섹션 제외)
+                valid_sections = []
+                for i, sec in enumerate(sections):
+                    sec_stripped = sec.strip()
+                    if sec_stripped:
+                        valid_sections.append((section_names[i] if i < len(section_names) else f"파트{i+1}", sec_stripped))
 
-            log(f"[EP{current_ep}] 기-승-전-결 분할 완료: {len(valid_sections)}개 섹션")
+                log(f"[EP{current_ep}] 기-승-전-결 분할 완료: {len(valid_sections)}개 섹션")
 
-            # 전체 원문 (소설가가 전체 흐름 파악용)
-            full_context = chapter_content
+                # 전체 원문 (소설가가 전체 흐름 파악용)
+                full_context = chapter_content
 
-            # --- A) 편집자 4번 호출: 기-승-전-결 각각 개별 리뷰 (대화 컨텍스트 유지) ---
-            info_lines["status"] = f"[EP{current_ep}/{config.total_episodes}] 기-승-전-결 리뷰 중..."
+                # --- A) 편집자 4번 호출: 기-승-전-결 각각 개별 리뷰 (대화 컨텍스트 유지) ---
+                info_lines["status"] = f"[EP{current_ep}/{config.total_episodes}] 기-승-전-결 리뷰 중..."
 
-            section_reviews = {}
-            section_map = {"기": 0, "승": 1, "전": 2, "결": 3}
+                section_reviews = {}
+                section_map = {"기": 0, "승": 1, "전": 2, "결": 3}
 
-            # meromero 대화 컨텍스트 유지용 messages
-            messages_meromero = [
-                {"role": "system", "content": VARS["review_agent_system"]}
-            ]
+                # meromero 대화 컨텍스트 유지용 messages
+                messages_meromero = [
+                    {"role": "system", "content": VARS["review_agent_system"]}
+                ]
 
-            # 1번 호출: 기 파트 (전체 기-승-전-결 내용 포함)
-            progress_pct = int(current_ep / config.total_episodes * 100)
-            if current_ep / config.total_episodes < 0.4:
-                feedback_by_ep = f"아주중요: 현재 에피소드 진행도는 {progress_pct}%입니다. 일상생활 묘사 및 빌드업에 집중해야 됩니다"
-            else:
-                feedback_by_ep = f"아주중요: 현재 에피소드 진행도는 {progress_pct}%입니다. 살짝 엣찌한 묘사가 허용됩니다"
+                # 1번 호출: 기 파트 (전체 기-승-전-결 내용 포함)
+                progress_pct = int(current_ep / config.total_episodes * 100)
+                if current_ep / config.total_episodes < 0.4:
+                    feedback_by_ep = f"아주중요: 현재 에피소드 진행도는 {progress_pct}%입니다. 일상생활 묘사 및 빌드업에 집중해야 됩니다"
+                else:
+                    feedback_by_ep = f"아주중요: 현재 에피소드 진행도는 {progress_pct}%입니다. 살짝 엣찌한 묘사가 허용됩니다"
 
-            review_prompt = _build_prompt(
-                prompts["review_meromero_ki"],
-                feedback_by_ep=feedback_by_ep, prompt_extended=prompt_extended,
-                section_ki=sections[0], section_seung=sections[1],
-                section_jeon=sections[2], section_gyeol=sections[3]
-            )
-            log(f"[EP{current_ep}] [PROMPT_7] 편집자 호출: 기 파트 리뷰 (전체 컨텍스트 포함)")
-            review_result = call_openai_for_client(review_prompt, log_fn=log, agent="gemma", messages=messages_meromero)
-            log(f"[EP{current_ep}] [USER]\n{review_prompt}...")
-            log(f"[EP{current_ep}] [AI]\n{review_result}...")
-            section_reviews["기"] = review_result.strip()
-
-            # 2~4번 호출: 승, 전, 결 파트 (대화 컨텍스트 유지)
-            for sec_name in ["승", "전", "결"]:
                 review_prompt = _build_prompt(
-                    prompts["review_meromero_other"],
-                    sec_name=sec_name
+                    prompts["review_meromero_ki"],
+                    feedback_by_ep=feedback_by_ep, prompt_extended=prompt_extended,
+                    section_ki=sections[0], section_seung=sections[1],
+                    section_jeon=sections[2], section_gyeol=sections[3],
+                    name=config.name, episode_guide=episode_guide
                 )
-                log(f"[EP{current_ep}] [PROMPT_7] 편집자 호출: {sec_name} 파트 리뷰")
-                review_result = call_openai_for_client(review_prompt, log_fn=log, agent="gemma", messages=messages_meromero)
+                log(f"[EP{current_ep}] [PROMPT_7] 편집자 호출: 기 파트 리뷰 (전체 컨텍스트 포함)")
+                review_result, messages_meromero = call_openai_for_plot(review_prompt, log_fn=log, messages=messages_meromero)
                 log(f"[EP{current_ep}] [USER]\n{review_prompt}...")
                 log(f"[EP{current_ep}] [AI]\n{review_result}...")
-                section_reviews[sec_name] = review_result.strip()
+                section_reviews["기"] = review_result.strip()
 
-            log(f"[EP{current_ep}] 각 파트별 리뷰 추출 완료 (4번 API 호출)")
+                # 2~4번 호출: 승, 전, 결 파트 (대화 컨텍스트 유지)
+                for sec_name in ["승", "전", "결"]:
+                    review_prompt = _build_prompt(
+                        prompts["review_meromero_other"],
+                        sec_name=sec_name
+                    )
+                    log(f"[EP{current_ep}] [PROMPT_7] 편집자 호출: {sec_name} 파트 리뷰")
+                    review_result, messages_meromero = call_openai_for_plot(review_prompt, log_fn=log, messages=messages_meromero)
+                    log(f"[EP{current_ep}] [USER]\n{review_prompt}...")
+                    log(f"[EP{current_ep}] [AI]\n{review_result}...")
+                    section_reviews[sec_name] = review_result.strip()
 
-            # 전 에피소드 요약
-            if current_ep > 1:
-                prev_episode_summary = config.episode_content[current_ep - 2] if current_ep - 2 < len(config.episode_content) else ""
-                prev_episode = f"""
+                log(f"[EP{current_ep}] 각 파트별 리뷰 추출 완료 (4번 API 호출)")
+
+                # 전 에피소드 요약
+                if current_ep > 1:
+                    prev_episode_summary = config.episode_content[current_ep - 2] if current_ep - 2 < len(config.episode_content) else ""
+                    prev_episode = f"""
 [전 에피소드 요약]
 {prev_episode_summary}
 """
-            else:
-                prev_episode = ""
+                else:
+                    prev_episode = ""
 
-            # Qwen: 대화 컨텍스트 유지하며 각 파트별 개별 호출
-            section_reviews2 = {}
-            section_map2 = {"기": 0, "승": 1, "전": 2, "결": 3}
-            messages2 = [
-                {"role": "system", "content": VARS["review_agent_system"]}
-            ]
+                # Qwen: 대화 컨텍스트 유지하며 각 파트별 개별 호출
+                section_reviews2 = {}
+                section_map2 = {"기": 0, "승": 1, "전": 2, "결": 3}
+                messages2 = [
+                    {"role": "system", "content": VARS["review_agent_system"]}
+                ]
 
-            if config.json_value.get("agent_2nd", "no") == "yes":
                 review_prompt = _build_prompt(
                     prompts["review_qwen_ki"],
                     prompt_extended=prompt_extended, prev_episode=prev_episode,
@@ -780,7 +804,7 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
                     section_jeon=sections[2], section_gyeol=sections[3]
                 )
                 log(f"[EP{current_ep}] [PROMPT_7] 편집자2 호출: 기 파트 리뷰 (전체 컨텍스트 포함)")
-                review_result = call_openai_for_client(review_prompt, log_fn=log, agent="gemma", messages=messages2)
+                review_result, messages2 = call_openai_for_plot(review_prompt, log_fn=log, messages=messages2)
                 log(f"[EP{current_ep}] [USER]\n{review_prompt}...")
                 log(f"[EP{current_ep}] [AI]\n{review_result}...")
                 section_reviews2["기"] = review_result.strip()
@@ -791,48 +815,42 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
                         sec_name=sec_name
                     )
                     log(f"[EP{current_ep}] [PROMPT_7] 편집자2 호출: {sec_name} 파트 리뷰")
-                    review_result = call_openai_for_client(review_prompt, log_fn=log, agent="gemma", messages=messages2)
+                    review_result, messages2 = call_openai_for_plot(review_prompt, log_fn=log, messages=messages2)
                     log(f"[EP{current_ep}] [USER]\n{review_prompt}...")
                     log(f"[EP{current_ep}] [AI]\n{review_result}...")
                     section_reviews2[sec_name] = review_result.strip()
 
                 log(f"[EP{current_ep}] 각 파트별 리뷰 추출 완료 (4번 API 호출)")
-            else:
-                log(f"[EP{current_ep}] agent_2nd=no이므로 Qwen 호출 skip")
 
-            # --- B) 소설가가 각 섹션별 리뷰를 사용하여 개별 재작성 ---
-            info_lines["status"] = f"[EP{current_ep}/{config.total_episodes}] 기-승-전-결 재작성 중..."
-            revised_sections = []
+                # --- B) 소설가가 각 섹션별 리뷰를 사용하여 개별 재작성 ---
+                # shortnovel 동기화: Part 1~4 대화(messages)를 그대로 유지하여 계속 진행
+                # (재작성 모델이 대화 컨텍스트에서 모든 파트의 원문과 흐름을 직접 확인)
+                info_lines["status"] = f"[EP{current_ep}/{config.total_episodes}] 기-승-전-결 재작성 중..."
+                revised_sections = []
 
-            config.messages_history = []
+                if current_ep / config.total_episodes < 0.4:
+                    another_feedback = "아주중요: 현재 에피소드는 초반이므로 편집자의 리뷰를 순화해서 받아드릴 것! 편집자는 처음부터 수위를 높이고 싶지만 너무 어색해짐"
+                else:
+                    another_feedback = "아주중요: 현재 에피소드는 초반이후이므로 편집자의 리뷰 반영할 것"
 
-            if current_ep / config.total_episodes < 0.4:
-                another_feedback = "아주중요: 현재 에피소드는 초반이므로 편집자의 리뷰를 순화해서 받아드릴 것! 편집자는 처음부터 수위를 높이고 싶지만 너무 어색해짐"
-            else:
-                another_feedback = "아주중요: 현재 에피소드는 초반이후이므로 편집자의 리뷰 반영할 것"
+                for sec_name, sec_content in valid_sections:
+                    revise_prompt = _build_prompt(
+                        prompts["revise_section"],
+                        sec_name=sec_name, another_feedback=another_feedback,
+                        review1=section_reviews.get(sec_name, ''),
+                        review2=section_reviews2.get(sec_name, ''),
+                        pov=pov_map.get(sec_name, ''),
+                        sec_content=sec_content, context_block="",
+                        name=config.name, episode_guide=episode_guide
+                    )
+                    log(f"[EP{current_ep}] [PROMPT_8_{sec_name}] '{sec_name}' 파트 재작성")
+                    revised_sec, messages = call_openai_for_plot(revise_prompt, messages=messages, log_fn=log)
+                    revised_sections.append(revised_sec)
+                    log(f"[EP{current_ep}] [USER]\n{revise_prompt}...")
+                    log(f"[EP{current_ep}] [AI]\n{revised_sec}...")
 
-            for i, (sec_name, sec_content) in enumerate(valid_sections):
-                context_block = f"""
-
-## 전체 에피소드 컨텍스트 (흐름 파악용):
-{full_context}""" if i == 0 else ""
-
-                revise_prompt = _build_prompt(
-                    prompts["revise_section"],
-                    sec_name=sec_name, another_feedback=another_feedback,
-                    review1=section_reviews.get(sec_name, ''),
-                    review2=section_reviews2.get(sec_name, ''),
-                    pov=pov_map.get(sec_name, ''),
-                    sec_content=sec_content, context_block=context_block
-                )
-                log(f"[EP{current_ep}] [PROMPT_8_{sec_name}] '{sec_name}' 파트 재작성")
-                revised_sec = call_openai_api(revise_prompt, callback=callback, info_lines=info_lines)
-                revised_sections.append(revised_sec)
-                log(f"[EP{current_ep}] [USER]\n{revise_prompt}...")
-                log(f"[EP{current_ep}] [AI]\n{revised_sec}...")
-
-            # 재작성된 기-승-전-결 하나로 합치기
-            revised_content = "\n\n----------------------------------\n#####\n\n".join(revised_sections)
+                # 재작성된 기-승-전-결 하나로 합치기
+                revised_content = "\n\n----------------------------------\n#####\n\n".join(revised_sections)
 
             # 수정된 내용 저장
             config.episode_full_original_content[current_ep - 1] = chapter_content
@@ -851,15 +869,16 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
                 f.write(chapter_content)
             log(f"[EP{current_ep}] 리뷰 전 저장: {filepath_before}")
 
-            filename_after = f"episode_{current_ep:02d}_reviewed.md"
-            filepath_after = os.path.join(result_dir, filename_after)
-            with open(filepath_after, "w", encoding="utf-8") as f:
-                f.write(f"# Episode {current_ep}\n\n")
-                f.write(revised_content)
-            log(f"[EP{current_ep}] 리뷰 후 저장: {filepath_after}")
-
-            config.messages_history = []
-            log(f"[EP{current_ep}] 완료 (기-승-전-결별 리뷰+수정 적용)")
+            if agent_2nd == "yes":
+                filename_after = f"episode_{current_ep:02d}_reviewed.md"
+                filepath_after = os.path.join(result_dir, filename_after)
+                with open(filepath_after, "w", encoding="utf-8") as f:
+                    f.write(f"# Episode {current_ep}\n\n")
+                    f.write(revised_content)
+                log(f"[EP{current_ep}] 리뷰 후 저장: {filepath_after}")
+                log(f"[EP{current_ep}] 완료 (기-승-전-결별 리뷰+수정 적용)")
+            else:
+                log(f"[EP{current_ep}] 완료 (리뷰/재작성 skip, 원문 markdown 출력)")
 
         final_result = "\n\n".join(all_chapter_content)
         log(f"[full_episode_gen] 완료 - 총 {len(all_chapter_content)}개 에피소드 생성")
@@ -867,5 +886,8 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
         return final_result
 
     except Exception as e:
+        # 예외를 로그에 기록하지 않으면 로그가 갑자기 끊겨 LLM 장애로 오인됨
+        log(f"[ERROR] 전체 소설 생성 중 예외 발생: {type(e).__name__}: {e}")
+        log(traceback.format_exc())
         log_file.close()
         return f"전체 소설 생성 중 오류 발생: {e}\n(API 키 설정 등을 확인하세요)"

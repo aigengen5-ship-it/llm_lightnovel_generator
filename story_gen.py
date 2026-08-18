@@ -6,7 +6,6 @@ import character_setup
 from common_def import name_chg, get_particles
 import os
 import time
-from openai import APITimeoutError, APIStatusError
 from openAPI_control import call_openai_api
 
 def random_prompt(wildcard, mynumber=-1):
@@ -368,13 +367,6 @@ def episode_summary_gen(callback=None):
         log(f"progression_array 길이: {len(progression_array)}")
         log("=" * 60)
 
-        # API 호출용 클라이언트 생성
-        api_key = os.environ.get("OPENAI_API_KEY", "gemma-4-31b")
-        client = OpenAI(
-            base_url="http://" + config.json_value.get("ip_main", "192.168.1.162") + ":" + config.json_value["port_main"] + "/v1",
-            api_key=api_key
-        )
-
         # 각 에피소드 개별 생성 루프
         for ep_idx in range(config.total_episodes):
             ep_num = ep_idx + 1
@@ -449,69 +441,16 @@ def episode_summary_gen(callback=None):
             log(f"[USER PROMPT] Episode {ep_num}:")
             log(user_prompt)
 
-            # messages_history 설정 (시스템 프롬프트 + 현재 요청)
+            # messages_history에 시스템 프롬프트 확인
             if not config.messages_history or config.messages_history[0].get("role") != "system":
                 config.messages_history.insert(0, {"role": "system", "content": config.system_prompt})
 
-            # 이전 대화는 유지하고 현재 에피소드 요청 추가
-            ep_messages = config.messages_history.copy()
-            ep_messages.append({"role": "user", "content": user_prompt})
-
-            temp = 0.9 + rand.randint(0, 1) / 10.0
-            top_p = 0.95
-            repeat_penalty = 1.15
-            top_k = 64
-            my_extra_params = {
-                "repeat_penalty": repeat_penalty,
-                "top_k": top_k
-            }
-
-            # API 호출
-            full_response = ""
-            max_try = 0
-            timeout_check = 0
-
-            while timeout_check == 0:
-                try:
-                    response = client.chat.completions.create(
-                        model="gemma-4-31B-it",
-                        stream_options={"include": True},
-                        messages=ep_messages,
-                        temperature=temp,
-                        top_p=top_p,
-                        stream=config.stream_enb,
-                        timeout=300.0,
-                        extra_body=my_extra_params)
-                    timeout_check = 1
-                except APITimeoutError:
-                    log(f"[TIMEOUT] Episode {ep_num} - 재시도 {max_try + 1}")
-                    timeout_check = 0
-                    max_try += 1
-                    time.sleep(10)
-                    if max_try > 3:
-                        log(f"[ERROR] Episode {ep_num} - 서버 응답 실패")
-                        full_response = f"(에피소드 {ep_num} 생성 실패)"
-                        break
-
-            if config.stream_enb:
-                for chunk in response:
-                    if chunk.usage:
-                        log(f"[TOKEN] Episode {ep_num} - Prompt: {chunk.usage.prompt_tokens}, "
-                            f"Completion: {chunk.usage.completion_tokens}, "
-                            f"Total: {chunk.usage.total_tokens}")
-                    if not chunk.choices:
-                        continue
-                    content = chunk.choices[0].delta.content
-                    if content:
-                        full_response += content
+            # API 호출 (공통 모듈 사용 - config.messages_history 자동 관리)
+            full_response = call_openai_api(user_prompt, log_fn=log)
 
             # 응답 로그
             log(f"[ASSISTANT RESPONSE] Episode {ep_num}:")
             log(full_response)
-
-            # 응답을 messages_history에 추가
-            ep_messages.append({"role": "assistant", "content": full_response})
-            config.messages_history = ep_messages
 
             # 에피소드 내용 저장
             config.episode_content[ep_idx] = full_response.strip()

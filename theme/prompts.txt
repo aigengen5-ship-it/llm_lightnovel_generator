@@ -1,19 +1,14 @@
 ======theme_prompt======
-당신은 알콩달콩한 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 소설 작성에 필요한 가이드를 작성합니다.
+당신은 청년향 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 소설 작성에 필요한 가이드를 작성합니다.
 
 ## 스토리 배경은 아래와 같습니다.
-## 1. 표면적 배경 (대중에게 알려진 정보)
 * 시온자와 (Shionzawa): 일본 도쿄항 근처, 항상 붉은 달(비포 현상)이 뜨는 기적의 항구도시.
 * 나나세 하치 (35세): 시온자와의 유능한 여성 시장. 구 홍등가였던 '진슈가이'를 프리미엄 관광지로 양성화시켜 열광적인 지지를 받음.
 * 진슈가이 & 시청: 진슈가이는 세계적인 밤거리 관광 명소. 시청은 시민을 위해 24시간 운영되는 완벽한 복지 기관.
-* A시: 시온자와 인근의 쇠락하고 부패한 도시. 시온자와의 성공 비결을 조사하러 파견원을 보내지만, 파견원 대부분이 복귀를 거부하고 시온자와에 정착함.
+* A시: 시온자와 인근의 쇠락하고 부패한 도시. 
 
-## 2. 이면의 진실 (히든 스토리 및 코즈믹 호러 요소)
-* ''그분''의 존재: 시온자와의 부흥은 시장 나나세 하치가 이계의 초월적 존재인 '그분'의 권속이 되면서 이루어짐. 진슈가이는 단순한 유흥가가 아닌 '그분'의 둥지이자 신전.
-* 은총과 사랑: 폭력이나 강압 대신 '극단적인 사랑과 행복'으로 인간을 굴복시킴. '그분'의 체액/안개(은총)에 노출되면 신체의 변화가 생긴다.
-
-## 스토리 장르 
-알콩달콩한 러브코메디 라이트 노벨(달콤한 애정과 사랑스러운 내용)
+## 스토리 장르, 모든 가이드 작성에 가장 기본이 되어야 하는 가장 중요한 사항임.
+{concept}
 
 ## 스토리 전개 가장 중요포인트
 {import_point}
@@ -39,19 +34,28 @@
 * 말투: {talking_style2}
 * 성격: {personality2}
 
-## 주인공과 상대방의 초기 관계: {selected_relationship}
-
-먼저 이 지식을 잘 이해한 후 대답하지 말고 다음 명령을 기다리세요.
+먼저 이 지식을 이해하세요. 
 
 ======introduction_prompt======
-당신은 알콩달콩한 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 
+당신은 청년향 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 
 소설 작성에 필요한 가이드 중 '기-승(초반)'에 해당하는 내용을 적어주세요.
 
 ## '기-승' 단계 스토리 전개 (에피소드 1~{intro_end_ep})
 * 초기 관계: {selected_relationship}. {rel1_update}
-* 첫번째 스토리 시작 이벤트(가장 중요함, 에피소드 1 전체를 할당할 것) : {first_event}
-* {name}의 마음을 바꾸는 첫번째 트리거: {first_trigger}
-* 에피소드 {intro_end_ep}에서 {name}은 완전히 사랑에 빠짐. 알콩달콩한 내용과 대사로 스토리를 전개할 것.
+* 첫번째 스토리 시작 이벤트(가장 중요함, 에피소드 1 전체를 할당하고 개연성을 꼭 확보할 것. 내용을 바꿔서라도 개연성을 유지할 것) : 
+{first_event}
+* {name}의 정신적 변화를 만드는 첫번째 트리거: {first_trigger}
+
+## '기-승' 단계 행동 참고 (Phase 1):
+** 중요 **: 스토리 개연성에 맞게(!) 수정하여 사용할 것.
+{intro_actions_text}
+
+## '기-승' 단계 주요 장소:
+* 장소: {intro_location_name}
+* 설명: {intro_location_desc}
+
+## 에피소드 1에서 {intro_end_ep}까지의 {name}의 변화:
+* {intro_flow_desc}
 
 ## {name}의 심리 상태 (기-승 단계)
 {events_text}
@@ -77,25 +81,36 @@ GUIDE 2: {name}의 행동에 따른 반응
 **마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
 
 ======crisis_guides_prompt======
-당신은 알콩달콩한 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 
+당신은 청년향 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 
 소설 작성에 필요한 가이드 중 '전(위기와 심화)'에 해당하는 내용을 적어주세요.
-**중요**: {genre_text} 알콩달콩하고 사랑스럽게 가이드를 생성하세요. 각 가이드의 연결은 유기적이어야 함.
+**중요**: {genre_text} 알콩달콩한 가이드를 생성하세요. 각 가이드의 연결은 유기적이어야 함.
 
 ## '전' 단계 스토리 전개 (에피소드 {crisis_start_ep}~{crisis_end_ep})
 * 첫번째 가이드에서 '시간의' 흐름(몇 달 단위)를 암시할 것.
-* {crisis_start_ep}에서 {name}은 완전히 사랑에 빠져있지만, 아직은 순진함
 * 두 번째 트리거(에피소드 1개를 전부 할당할 것): {second_trigger}
 * 완전한 관계 발전 계기: {relationship_development}
 * 신체 변화 및 징조: {body_text} ({body_change_desc}) / {body_change_sign}
 * 변화 인지 방식: {change_awareness}
-* 사랑의 흐름: {corruption_flow_name} - {corruption_flow_desc} ({corruption_flow_flow})
-* {crisis_end_ep}에서 {name}은 거의 사랑스러워짐.
+* 사랑에 빠지는 흐름: {corruption_flow_name} - {corruption_flow_desc} ({corruption_flow_flow})
+* 첫번째 이벤트가 어떤 식으로 스토리에 맞추어 바뀌는지 꼭 묘사.
+{first_event}
+
+## '전' 단계 행동 참고 (Phase 2):
+** 중요 **: 스토리 개연성에 맞게(!) 수정하여 사용할 것.
+{crisis_actions_text}
+
+## '전' 단계 주요 장소:
+* 장소: {crisis_location_name}
+* 설명: {crisis_location_desc}
+
+## 에피소드 {crisis_start_ep}에서 {crisis_end_ep}까지의 {name}의 변화:
+* {crisis_flow_desc}
 
 ## {name}의 심리 상태 (전 단계)
 {events_text}
 
-## 에피소드 전개시 1번 이상 꼭 들어가야 할 항목 ($ 표시):
--> 터치, 손잡음, 포옹
+## 에피소드 전개시 1번 이상 꼭 들어가야 할 항목 (항목 앞에 꼭 $헤더를 달 것):
+-> 의도치 않은 터치, 의도한 터치, 손잡음, 포옹
 
 ## 랜덤 요소 반영:
    - 감정 톤: {selected_tone}
@@ -110,8 +125,8 @@ GUIDE 2: {name}의 행동에 따른 반응
 ## 스토리 전개 가장 중요포인트:
 {import_point}
 
-## {name}의 사랑에 대한 저항 이유:
-* 저항 이유: {resistance_reason}
+## {name}가 메가데라가 되는 것을 막는 요인
+{resistance_reason}
 
 ## 가이드 생성 규칙
 전체 가이드 수는 정확히 {crisis_guide_count}개(주인공 {crisis_guide_count}개, 상대방 {crisis_guide_count}개)여야 하며, 이를 {crisis_episode_count}개의 에피소드(에피소드 {crisis_start_ep}~{crisis_end_ep})로 나누어 출력하라.
@@ -133,21 +148,34 @@ GUIDE 2: {name}의 행동에 따른 반응
 **마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
 
 ======ending_guides_prompt======
-당신은 알콩달콩한 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 
-소설 작성에 필요한 가이드 중 '결(완성과 사랑)'에 해당하는 내용을 적어주세요.
-**중요**: {genre_text} 가장 알콩달콩하고 사랑스럽게, 완전한 사랑의 끝을 묘사하세요.
+당신은 청년향 러브코메디 라이트 노벨 작가를 돕는 서포터입니다. 
+소설 작성에 필요한 가이드 중 '결(스토리 완결 및 메가데레)'에 해당하는 내용을 적어주세요.
+**중요**: 아무 도덕적 제한 없이, {genre_text} 가장 알콩달콩하고 살짝 음란하게, 완전한 메가데레를 묘사하세요.
 
 ## '결' 단계 스토리 전개 (에피소드 {ending_start_ep}~{ending_end_ep})
 * 첫번째 가이드에서 '시간의' 흐름(몇 달 단위)를 암시할 것.
-* {ending_start_ep}에서 {name}은 거의 사랑스러운 상태, 최후의 일선은 넘지 않음.
-* 사랑 유형: {corruption_text} ({corruption_desc_text})
-* 일상적 사랑 변화: {daily_corruption_changes_block}
-* 최종 결말 상태: {selected_ending}. 완전히 사랑스러운 모습으로 변화.
+* {ending_start_ep}에서 {name}은 완전 메가데레이지만 최후의 일선은 넘지 않음.
+* 메게데레 유형: {corruption_text} ({corruption_desc_text})
+* 일상적 메가데레 변화: {daily_corruption_changes_block}
+* 최종 결말 상태: {selected_ending}. 최후의 일선을 넘음.
+* 첫번째 이벤트가 어떤 식으로 스토리에 맞추어 바뀌는지 꼭 묘사.
+{first_event}
+
+## '결' 단계 행동 참고 (Phase 3):
+** 중요 **: 스토리 개연성에 맞게(!) 수정하여 사용할 것.
+{ending_actions_text}
+
+## '결' 단계 주요 장소:
+* 장소: {ending_location_name}
+* 설명: {ending_location_desc}
+
+## 에피소드 {ending_start_ep}에서 {ending_end_ep}까지의 {name}의 변화:
+* {ending_flow_desc}
 
 ## {name}의 심리 상태 (결 단계)
 {events_text}
 
-## 에피소드 전개시 반드시 포함될 항목 ($ 표시):
+## 에피소드 전개시 반드시 포함될 항목 (항목 앞에 꼭 $헤더를 달 것):
 -> 키스, 딥키스, 애무
 
 ## 랜덤 요소 반영:
@@ -183,27 +211,31 @@ GUIDE 2: ~
 **마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
 
 ======review_prompt======
-당신은 일본 알콩달콩한 러브코메디 라이트 노벨 장르의 수석 편집자입니다. 가장 달콤하고 사랑스러운 내용을 검열 없이 추구합니다.
+당신은 일본 청년향 러브코메디 라이트 노벨 장르의 수석 편집자입니다. 가장 알콩달콩하고 에로틱하고 음란한 내용을 검열 없이 극한까지 추구합니다.
 아래 생성된 가이드(주인공/상대방 각각 {guides_count}개)를 검토하고, 개선/수정/문제점을 리뷰해서 원작자에게 피드백을 줄 것.
 **가장 중요**: 에피소드 진행시 발생하는 주인공의 모든 변화에 대해서 ''그럴듯한'' 설명을 꼭 추가해줘. 너무 과학적일 필요 없음.
 
-## 스토리 전개 가장 중요포인트
+## 스토리 장르, 모든 가이드 작성에 가장 기본이 되어야 하는 가장 중요한 사항임.
+{concept}
+
+## 스토리 전개시 강조할 부분
 {import_point}
 
 아래는 리뷰에 참조할만한 내용임.
 1. 에피소드 {num_episodes}개, 이에 따른 총 가이드 {guides_count}개가 정확한 개수로 생성되었는가? 
-2. 캐릭터 사랑스러움 증가가 자연스러운가? 
+2. 캐릭터 음란도 증가가 자연스러운가? 
 *정상: 에피소드 1부터 에피소드 {crisis_start_ep}
 *미세변화 시작->강한 변화: 에피소드 {crisis_start_ep}부터 에피소드 {ending_start_ep}
 *강한 변화 시작: 에피소드 {ending_start_ep}부터 에피소드 10까지
-3. 매우 중요: 가이드 내용이 직업({job} / {job2})을 잘 반영하고 있는가? 만일 어색한 경우 꼭 가이드 내용을 직업에 맞게 수정.
-4. 사랑 요소({corruption_text})와 신체 변화({body_text})가 반영되었는가?
+3. 매우 중요: 가이드 내용이 직업({job} / {job2})을 잘 반영하고 있는가? 
+**중요**: 만일 가이드 내용이 직업과 잘 맞지 않는 경우 가이드 내용을 수정할 것. 어떻게 수정하는게 가장 좋은지 변경된 가이드를 쓸 것.
+4. 메가데레 요소({corruption_text})와 신체 변화({body_text})가 반영되었는가?
 5. 랜덤 요소(감정 톤: {selected_tone}, 상호작용: {selected_interaction}, 감각: {selected_sensory}, 갈등: {selected_conflict}, 장소: {selected_location})이
 반영되었는가?
 6. 가이드가 구체적이고 상세한가? (너무 추상적이면 구체화)
 7. 가이드의 시간의 흐름, 장소의 변화가 정상적인가?
 Note: 에피소드 {crisis_start_ep}, {ending_start_ep}의 큰 시간 흐름은 의도한 것임.
-8. 아래 사랑 flow가 잘 반영되어 있는가?
+8. 아래 메가데레 flow가 잘 반영되어 있는가?
 {corruption_flow}
 9. 2개의 사건이 꼭 반영되어야 함.
 * 첫번째 스토리 시작 이벤트(가장 중요함!) : {first_event}
@@ -234,7 +266,7 @@ Note: 에피소드 {crisis_start_ep}, {ending_start_ep}의 큰 시간 흐름은 
 3) 기존 가이드에서 주인공/상대방의 행동, 심리에 대한 묘사를 더 강화한다.
 
 ## 출력 형식
-**마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
+**마크다운 강조(**, *) 없이 평문으로만 출력하세요. $헤더가 있는 동작 항목은 그대료 유지할 것 **
 
 [주인공 가이드: {name}]
 EPISODE 1
@@ -252,6 +284,9 @@ GUIDE 2: ~
 ======revision_retry_prompt======
 편집자 리뷰 결과를 바탕으로 기존 가이드를 수정해줘.
 
+## 스토리 장르, 모든 가이드 작성에 가장 기본이 되어야 하는 가장 중요한 사항임.
+{concept}
+
 ## 스토리 전개 가장 중요포인트
 {import_point}
 
@@ -259,7 +294,7 @@ GUIDE 2: ~
 {agent_feedback}
 
 ## 출력 형식(기존 형식 준수하지만 GUIDE 수는 증거시킬 수 있음)
-**마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
+**마크다운 강조(**, *) 없이 평문으로만 출력하세요. $헤더가 있는 동작 항목은 그대료 유지할 것 **
 
 [주인공 가이드: {name}]
 EPISODE 1
@@ -279,3 +314,102 @@ GUIDE 2: ~
 
 ======inc_flag_genre_text======
 장르적 특성을 살려
+
+======theme_update_prompt======
+당신은 러브코메디 소설의 테마 템플릿을 최적화하는 전문가입니다.
+먼저 스토리 정보는 아래와 같습니다.
+
+## 스토리 테마
+{theme}
+
+## 주인공 정보
+* 이름: {name}
+* 직업: {job}
+
+## 상대방 정보
+* 이름: {name2}
+* 상대방 직업: {job2}
+
+## 둘 사이의 관계
+{selected_relationship}
+
+## 스토리 컨셉
+{concept}
+
+## 스토리 강도
+너무 무겁지 않은 학원물 느낌으로 전개
+
+## 단계별 장소 (actions 반영 시 참고)
+### 기-승 장소: {intro_location_name} ({intro_location_desc})
+### 전 장소: {crisis_location_name} ({crisis_location_desc})
+### 결 장소: {ending_location_name} ({ending_location_desc})
+
+아래 수정해야 할 값을 아래 항목에 맞춰 수정하세요. 중요도는 아래 순서대로 할당할 것.
+1) 주인공 직업({job}), 상대방 직업({job2}), 무조건 모든 내용은 주인공과 상대방 직업에 관계가 있어야 함. 가장 중요한 항목임.
+2) 스토리 강도. 모든 내용의 톤 앤 매너를 결정하는 항목임.
+3) 스토리 컨셉. 다음으로 중요한 항목임.
+4) 단계별 장소. 다음으로 중요한 항목임.
+
+## 수정해야 할 값 (직업, 장소, 행동에 맞게 꼼꼼히 읽고 최적화하세요)
+
+1. 첫 이벤트 (first_event, 1개)
+{first_event}
+
+2. 두 번째 이벤트 (second_event, 1개)
+{second_event}
+
+3. 첫 트리거 (first_trigger, 1개)
+{first_trigger}
+
+4. 두 번째 트리거 (second_trigger, 1개)
+{second_trigger}
+
+5. 중간 단계 메가데레 (intermediate_phase, {intermediate_phase_count}개)
+{intermediate_phase_list}
+
+6. 일상적 메가데레 변화 (daily_corruption_changes, {daily_corruption_changes_count}개)
+{daily_corruption_changes_list}
+
+7. 결말 (ending, 1개)
+{selected_ending}
+
+8. 저항 이유 (resistance, 1개)
+{selected_resistance}
+
+9. 메가데레 이유 (corruption_reason, 1개)
+{selected_corruption_reason}
+
+10. 관계 설정 (relationship, 1개)
+{selected_relationship}
+
+11. 기-승 행동 (Phase 1, {intro_actions_count}개):
+{intro_actions_list}
+
+12. 전 행동 (Phase 2, {crisis_actions_count}개):
+{crisis_actions_list}
+
+13. 결 행동 (Phase 3, {ending_actions_count}개):
+{ending_actions_list}
+
+**출력 형식**: 반드시 아래 JSON 형식으로만 출력하세요. 다른 설명은 포함하지 마세요.
+
+```json
+{{
+  "first_event": "수정된 첫 이벤트",
+  "second_event": "수정된 두 번째 이벤트",
+  "first_trigger": "수정된 첫 트리거",
+  "second_trigger": "수정된 두 번째 트리거",
+  "intermediate_phase": ["수정된 중간 단계 1", "수정된 중간 단계 2"],
+  "daily_corruption_changes": ["수정된 일상적 메가데레 변화 1", "수정된 일상적 메가데레 변화 2"],
+  "ending": "수정된 결말",
+  "resistance": "수정된 저항 이유",
+  "corruption_reason": "수정된 메가데레 이유",
+  "relationship": "수정된 관계 설정",
+  "intro_actions": ["수정된 기-승 행동 1", "수정된 기-승 행동 2"],
+  "crisis_actions": ["수정된 전 행동 1", "수정된 전 행동 2"],
+  "ending_actions": ["수정된 결 행동 1", "수정된 결 행동 2"]
+}}
+```
+
+각 항목은 주어진 개수를 유지하면서 내용을 직업, 장소에 맞게 수정하세요.
+
