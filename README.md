@@ -2,14 +2,20 @@
 
 (등장인물은 전부 성인입니다. 오픈소스입니다)
 
-셋업은 아래와 같이 해 주시면 됩니다.
+
+
+이 프로그램의 설정은 아래와 같이 해 주시면 됩니다.
 
 1. plot.json을 열어서 아래 항목을 현재 사용중인 로컬 LLM에 맞춰주세요.
 
 "ip_main": "gx10-a5a3",
+
 "port_main": "8000",
+
 "mainLLM": "gemma",
+
 "ip_agent": "gx10-a5a3",
+
 "port_agent": "8000",
 
 
@@ -29,6 +35,7 @@ source venv/bin/activate
 pip install -r requirement.txt
 
 6. 아래 명령을 이용하여 실행시켜 주세요.
+
 (job/job2는 취향에 맞게 수정하시면 됩니다)
 
 ./run_main.sh -id 1 -job 4 -job2 1
@@ -43,4 +50,5 @@ pip install -r requirement.txt
 초기 개발환경이므로 버그가 많을 것입니다. feedback 주시면 감사드립니다.
 
 ......혹시 불쌍한 중생에게 커피라도 사주실 분은 아래 링크 클릭이라도...TT
+
 https://buymeacoffee.com/aigengen5
