@@ -4,5 +4,6 @@
 /__pycache__
 /log
 /progress
-/vemv
 /venv
+/order
+*.md
