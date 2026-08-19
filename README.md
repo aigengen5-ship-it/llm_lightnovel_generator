@@ -35,9 +35,9 @@ pip install -r requirement.txt
 <img width="2830" height="1394" alt="image" src="https://github.com/user-attachments/assets/cf872b48-42b4-4401-b888-31b67e2e167c" />
 
 
-7. 임시) 현재 실행 순서는 아래와 같습니다.
-
-1번 -> 2번 -> 5번 -> 7번.
+7. 현재 실행 순서는 아래와 같습니다.
+결과 확인 필요없으면 10번을 바로 실행하세요. 
+아닌 경우 0번 -> 1번 -> 2번 -> 5번 -> 7번입니다.
 
 초기 개발환경이므로 버그가 많을 것입니다. feedback 주시면 감사드립니다.
 
