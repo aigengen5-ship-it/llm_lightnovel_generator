@@ -55,7 +55,7 @@ pip install -r requirement.txt
 ### 3. 프로그램 실행
 
 아래 명령어를 입력하여 프로그램을 구동합니다.  
-*(※ `-job` 및 `-job2` 옵션값은 필요에 따라 변경 가능합니다.)*
+*(※ `-job` 및 `-job2` 옵션값은 필요에 따라 변경 가능합니다. data/job.txt 및 data/job2.txt를 참조하여 원하는 직업을 선택하세요. )*
 
 ```bash
 ./run_main.sh -id 1 -job 4 -job2 1
