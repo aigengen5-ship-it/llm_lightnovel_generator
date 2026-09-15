@@ -149,3 +149,60 @@ sensory_emphasis:
 - 미각(키스, 체액, 맛)
 - 후각 + 촉각의 복합 감각
 - 시각 + 청각의 복합 감각
+
+
+# [Phase B 2026-09-13] 3인자(서브 캐릭터)용 — llm_shortnovel_generator_gui elements.yaml 에서 원문 이식
+# partner_appearance: 서브 캐릭터 말투/성격 풀 및 고정 외모 아키타입
+partner_appearance:
+  body_types: ["뚱뚱함", "보통", "마름"]
+  beard: ["수염있음", "수염없음"]
+  bald_probability: 0.1
+  hair_colors: ["검정", "갈색", "회색", "흰색", "금발", "밤색"]
+  hair_lengths: ["짧은 머리", "중간 머리", "긴 머리"]
+  glasses_probability: 0.2
+  eye_colors:
+    - ["갈색 눈", "brown eyes"]
+    - ["담갈색 눈", "dark brown eyes"]
+    - ["검정 눈", "black eyes"]
+    - ["초록 눈", "green eyes"]
+    - ["파랑 눈", "blue eyes"]
+    - ["회색 눈", "grey eyes"]
+    - ["호박색 눈", "amber eyes"]
+  skin_colors:
+    - ["밝은 피부", "fair skin"]
+    - ["노란빛 피부", "tan skin"]
+    - ["칙칙한 피부", "olive skin"]
+    - ["창백한 피부", "pale skin"]
+  look:
+    female: ["추함", "평범", "예쁨"]
+    male: ["추남", "평범", "잘생김"]
+  talking_styles: ["평범하게 말함", "천박하게 말함", "정중하게 말함"]
+  personalities: ["착함", "사악함(착한 척 함)", "사악함", "착함(사악한 척 함)"]
+
+# [2026-08-29 H2] 서브 캐릭터(3인자) 외모 고정값 (step1 §chr_num3)
+# - female: 상세 character sheet 필드 (주인공 스타일, 고정값)
+# - male: 상대방 캐릭터 제작 정보 (고정값) — sub_femboy=True 시 _femboy 변형 사용
+# - 말투/성격 랜덤 풀은 partner_appearance.talking_styles/personalities 재사용
+
+
+# [Phase B 2026-09-13] 3인자(서브 캐릭터)용 — llm_shortnovel_generator_gui elements.yaml 에서 원문 이식
+# sub_character_appearance: 서브 캐릭터 말투/성격 풀 및 고정 외모 아키타입
+sub_character_appearance:
+  female:
+    hair_color: "messy black hair"
+    hair_style: "short hair, ahoge, unkempt"
+    eye_color: "dark red eyes"
+    skin_color: "pale skin"
+    face_style: "tired eyes, dark circles under eyes, staring at screen, slight frown, expressionless"
+    accessory: "game controller, gaming headset"
+    breasts_size: 0
+    hip_size: 0
+    body_size: 0
+  male:
+    appearance: "보통, 수염없음, 흰색, 평범"
+    appearance_femboy: "보통, 수염없음, 흰색, 평범 (여성적인 이목구비가 있음)"
+    talking_style: "정중하게 말함"
+    talking_style_femboy: "정중하게 말함 (타락이 진행되며 귀여운 말투로 변함)"
+    personality: "사악함"
+    outfit: "캐주얼"
+    outfit_femboy: "캐주얼 (펨보이화 시 여성적인 복장으로 변함)"

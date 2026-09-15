@@ -43,6 +43,13 @@ def _load_prompts():
     return parsed
 
 def _build_prompt(template, **kwargs):
+    # [Phase B] 서브 캐릭터 플레이스홀더는 미전달 시 빈 문자열 (2인 모드 KeyError 방지)
+    kwargs.setdefault("sub_sheet_block", "")
+    kwargs.setdefault("sub_guides_text", "")
+    kwargs.setdefault("sub_appearance_hint", "")
+    kwargs.setdefault("current_sub_block", "")
+    kwargs.setdefault("sub_instruction", "")
+    kwargs.setdefault("sub_json_block", "")
     return template.format(**kwargs)
 
 # =============================================================================
@@ -161,16 +168,40 @@ def _compute_resistance_positions(total_episodes):
 
 def _update_character_sheets_via_api(episode_text, ep_num,
                                       current_protagonist, current_partner,
-                                      name1, name2, log_fn=None):
+                                      name1, name2, log_fn=None,
+                                      current_sub=""):
     prompts = _load_prompts()
     api_settings = VARS["api_settings"]
     counter_keys = VARS["counter_keys"]
     fixed_keys = VARS["fixed_keys"]
     hair_color_keywords = VARS["hair_color_keywords"]
 
+    # [G2] 서브 캐릭터 블록 (chr_num3=1 시에만 포함)
+    if current_sub:
+        current_sub_block = f"## 현재 서브 캐릭터 시트\n{current_sub}\n\n"
+        if getattr(config, 'sex3', '') == '여자':
+            # 여성: 상세 외모 필드는 고정값 (config에서 유지), 성격/말투/복장/타락 상태만 갱신
+            sub_instruction = ("3-1. 서브 캐릭터 시트도 에피소드 내용을 반영하여 업데이트하세요. "
+                               "고정값 (절대 변경 금지): 이름(name), 나이(age), 성별(sex), 직업(job), 관계(relationship), "
+                               "머리색(hair_color), 헤어스타일(hair_style), 눈 색깔(eye_color), 피부 색깔(skin_color), "
+                               "얼굴 스타일(face_style), 액세서리(acc), 가슴 크기(breasts_size), 엉덩이 크기(hip_size), 몸매(body_size). "
+                               "성격/말투/복장 변화와 현재 타락 상태(corruption_state)를 에피소드 내용을 반영하여 갱신할 것.\n")
+            sub_json_block = (',\n  "sub": {\n    "name": "~",\n    "age": ~,\n    "sex": "~",\n    "job": "~",\n    "relationship": "~",\n    "hair_color": "~",\n    "hair_style": "~",\n    "eye_color": "~",\n    "skin_color": "~",\n    "face_style": "~",\n    "acc": "~",\n    "breasts_size": "~",\n    "hip_size": "~",\n    "body_size": "~",\n    "personality": "~",\n    "talking_style": "~",\n    "clothes": "~",\n    "corruption_state": "~"\n  }')
+        else:
+            sub_instruction = ("3-1. 서브 캐릭터 시트도 에피소드 내용을 반영하여 업데이트하세요. "
+                               "고정값 (절대 변경 금지): 이름(name), 나이(age), 성별(sex), 직업(job), 관계(relationship). "
+                               "외모/성격/말투/복장 변화와 현재 타락 상태(corruption_state)를 에피소드 내용을 반영하여 갱신할 것.\n")
+            sub_json_block = (',\n  "sub": {\n    "name": "~",\n    "age": ~,\n    "sex": "~",\n    "job": "~",\n    "relationship": "~",\n    "appearance": "~",\n    "personality": "~",\n    "talking_style": "~",\n    "clothes": "~",\n    "corruption_state": "~"\n  }')
+    else:
+        current_sub_block = ""
+        sub_instruction = ""
+        sub_json_block = ""
+
     prompt = _build_prompt(
         prompts["character_sheet_update"],
         current_protagonist=current_protagonist, current_partner=current_partner,
+        current_sub_block=current_sub_block, sub_instruction=sub_instruction,
+        sub_json_block=sub_json_block,
         sex_count=config.sex_count, masturbation_count=config.masturbation_count,
         patting_count=config.patting_count, normal_sex_count=config.normal_sex_count,
         reverse_sex_count=config.reverse_sex_count, cowboy_sex_count=config.cowboy_sex_count,
@@ -190,7 +221,7 @@ def _update_character_sheets_via_api(episode_text, ep_num,
     if result == "서버 응답 실패":
         if log_fn:
             log_fn(f"[캐릭터 시트 업데이트] EPISODE {ep_num} - 서버 응답 실패. 기존 시트 유지")
-        return current_protagonist, current_partner
+        return current_protagonist, current_partner, current_sub
     import json as json_module
     try:
         result_clean = result.strip()
@@ -244,17 +275,32 @@ def _update_character_sheets_via_api(episode_text, ep_num,
         new_protagonist = _build_protagonist_sheet_text(proto, name1)
         new_partner = _build_partner_sheet_text(partner)
 
+        # [G2] 서브 캐릭터 시트 업데이트 (chr_num3=1)
+        new_sub = current_sub
+        if current_sub:
+            sub = data.get("sub", {})
+            if sub:
+                sub_baseline = _sub_sheet_to_baseline(current_sub)
+                # [G2] LLM이 생략한 필드는 직전 시트값을 상속한다 ('?' 오염 방지).
+                #      타깃은 고정값 5종(name/age/sex/job/relationship)만 상속하고
+                #      나머지(성격/말투/복장/타락상태)는 '?'로 떨어져 이후 EP 프롬프트에
+                #      미정 표시가 그대로 들어간다. 우리는 전 필드로 상속을 넓힌다.
+                for key, val in sub_baseline.items():
+                    if key not in sub:
+                        sub[key] = val
+                new_sub = _build_sub_sheet_text(sub, name1, getattr(config, 'name3', ''))
+
         # JSON 데이터를 파일로 저장 (progress/character_sheet_ep{N}.json)
         _plot_hash = getattr(config, 'plot_hash', '')
         _save_character_sheet_json(data, ep_num, _plot_hash)
 
         if log_fn:
             log_fn(f"[캐릭터 시트 업데이트] EPISODE {ep_num} - JSON 파싱 성공, 파일 저장 완료")
-        return new_protagonist, new_partner
+        return new_protagonist, new_partner, new_sub
     except (json_module.JSONDecodeError, KeyError, Exception) as e:
         if log_fn:
             log_fn(f"[캐릭터 시트 업데이트] EPISODE {ep_num} - JSON 파싱 실패: {e}. 기존 시트 유지")
-        return current_protagonist, current_partner
+        return current_protagonist, current_partner, current_sub
 
 
 def _parse_sheet_to_dict(sheet_text):
@@ -315,6 +361,79 @@ def _build_partner_sheet_text(partner):
     return "\n".join(lines)
 
 
+def _sub_sheet_to_baseline(sheet_text):
+    """서브 캐릭터 텍스트 시트 → LLM JSON 키(name/age/...) 딕셔너리.
+
+    [G2] 우리만 개선: 시트는 한글 라벨, LLM JSON은 영문 키인데 타깃은 범용
+    `_parse_sheet_to_dict`(키=한글 라벨)를 그대로 써서 `sub_fixed_keys` 상속이
+    사실상 동작하지 않는다(고정값이 '?'로 되돌아감). 여기서 라벨→영문키 매핑을
+    명시적으로 수행해 고정값(이름/나이/성별/직업/관계) 상속을 실제로 살린다.
+    """
+    label_map = (
+        ("서브 캐릭터 이름", "name"),
+        ("서브 캐릭터 나이", "age"),
+        ("서브 캐릭터 성별", "sex"),
+        ("서브 캐릭터 직업", "job"),
+        ("과의 관계", "relationship"),
+        ("서브 캐릭터 외모", "appearance"),
+        ("서브 캐릭터 성격", "personality"),
+        ("서브 캐릭터 말투", "talking_style"),
+        ("서브 캐릭터 복장", "clothes"),
+        ("현재 타락 상태", "corruption_state"),
+    )
+    out = {}
+    for line in (sheet_text or "").split("\n"):
+        line = line.strip()
+        if ":" not in line:
+            continue
+        key, _, val = line.partition(":")
+        key, val = key.strip(), val.strip()
+        for label, eng in label_map:
+            # 시트 라벨에는 주인공 이름이 섞여 들어가므로(예: '주인공(유나)과의 관계') 부분 일치 사용
+            if label in key:
+                try:
+                    val = int(val)
+                except ValueError:
+                    pass
+                out[eng] = val
+                break
+    return out
+
+
+def _build_sub_sheet_text(sub, name1, name3):
+    """sub(서브 캐릭터) 딕셔너리를 텍스트 시트로 변환 (character_setup.sub_sheet() 포맷과 동일)
+
+    성별 기반:
+      - 여성: 상세 character sheet (고정값, config에서 직접 참조 - LLM 응답 무시)
+      - 남성: appearance3 (상대방 캐릭터 제작 정보)
+    """
+    lines = ["## 서브 캐릭터 시트 ##"]
+    lines.append(f"서브 캐릭터 이름: {sub.get('name', name3)}")
+    lines.append(f"서브 캐릭터 나이: {sub.get('age', '?')}")
+    lines.append(f"서브 캐릭터 성별: {sub.get('sex', '?')}")
+    lines.append(f"서브 캐릭터 직업: {sub.get('job', '?')}")
+    lines.append(f"주인공({name1})과의 관계: {sub.get('relationship', '?')}")
+    sex = sub.get('sex', '') or getattr(config, 'sex3', '')
+    if sex == '여자' and getattr(config, 'hair_color3', ''):
+        # 여성: 상세 시트 (고정값 - config에서 직접 참조)
+        lines.append(f"머리색: {config.hair_color3}")
+        lines.append(f"헤어스타일: {config.hair_style3}")
+        lines.append(f"눈 색깔: {config.eye_color3}")
+        lines.append(f"피부 색깔: {config.skin_color3}")
+        lines.append(f"얼굴 스타일: {config.face_style3}")
+        lines.append(f"액세서리: {config.acc3}")
+        lines.append(f"가슴 크기: {character_setup.sub_size_text('breasts_size', config.breasts_size3)}")
+        lines.append(f"엉덩이 크기: {character_setup.sub_size_text('hip_size', config.hip_size3)}")
+        lines.append(f"몸매: {character_setup.sub_size_text('body_size', config.body_size3)}")
+    else:
+        lines.append(f"서브 캐릭터 외모: {sub.get('appearance', '?')}")
+    lines.append(f"서브 캐릭터 성격: {sub.get('personality', '?')}")
+    lines.append(f"서브 캐릭터 말투: {sub.get('talking_style', '?')}")
+    lines.append(f"서브 캐릭터 복장: {sub.get('clothes', '?')}")
+    lines.append(f"현재 타락 상태: {sub.get('corruption_state', '?')}")
+    return "\n".join(lines)
+
+
 def _save_character_sheet_json(data, ep_num, plot_hash):
     """character_sheet JSON 데이터를 파일로 저장"""
     import json as json_module
@@ -348,12 +467,19 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
 
     protagonist_sheet, _ = character_setup.character_sheet(0)
     partner_sheet = character_setup.partner_sheet()
+    # [Phase B] 서브 캐릭터(3인자) 시트
+    sub_sheet = character_setup.sub_sheet() if getattr(config, 'chr_num3', 0) == 1 else ""
     config.episode_protagonist_sheets = [protagonist_sheet] * total_episodes
     config.episode_partner_sheets = [partner_sheet] * total_episodes
+    config.episode_sub_sheets = [sub_sheet] * total_episodes
 
     rel1 = getattr(config, 'rel1', '')
     name1 = getattr(config, 'name', '주인공')
     name2 = getattr(config, 'name2', '상대방')
+    # [Phase B] chr_num3=1: name2 인자에 서브 캐릭터 포함 (name2,name3) — 스토리에 반영
+    name3 = getattr(config, 'name3', '')
+    if getattr(config, 'chr_num3', 0) == 1 and name3:
+        name2 = f"{name2},{name3}"
     job1 = getattr(config, 'job', '직업 미정')
     job2 = getattr(config, 'job2', '직업 미정')
     age1 = getattr(config, 'age', '?')
@@ -463,6 +589,41 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
         log_file.flush()
     plot_messages = [{"role": "system", "content": config.system_prompt}]
 
+    # -------------------------------------------------------------------------
+    # [G2] 서브 캐릭터 등장 빈도 랜덤 결정 (chr_num3=1인 경우만 사용)
+    # a) 여자 + 같이 타락함: 서브 주인공 느낌, 스토리 중반 이후 에피소드에서
+    #    기-승-전-결 전체에 50% 확률로 등장 (중반 이전은 특별 지시 없음)
+    # b) 같이 타락하지 않음: 에피소드당 약 50% 확률로 전-결에만 등장
+    # -------------------------------------------------------------------------
+    sub_appearance_mode = ""
+    if getattr(config, 'chr_num3', 0) == 1 and name3:
+        _sub_role = getattr(config, 'sub_corruption_role', '') or ''
+        if getattr(config, 'sex3', '') == '여자' and _sub_role.startswith('주인공과 함께 타락함'):
+            sub_appearance_mode = "together"    # a) 서브 주인공
+        else:
+            sub_appearance_mode = "jeon_gyeol"  # b) 전-결 전용
+        log(f"[서브 등장 빈도] mode={sub_appearance_mode}, name3={name3}, "
+            f"sex3={getattr(config, 'sex3', '')}, role={_sub_role[:40]}")
+
+    def _roll_sub_appearance(ep_num):
+        """에피소드별 서브 캐릭터 등장을 랜덤 결정하여 프롬프트 힌트 반환 (빈 문자열 = 특별 지시 없음)"""
+        if not sub_appearance_mode:
+            return ""
+        if sub_appearance_mode == "together":
+            # a) 스토리 중반 이전: 특별 지시 없음 (역할/가이드에 따라 자연스럽게 등장)
+            if ep_num <= total_episodes // 2:
+                return ""
+            if rand.random() < 0.5:
+                return (f"\n## 서브 캐릭터 등장: {name3}은(는) 이 에피소드의 기-승-전-결 전체에 "
+                        f"서브 주인공 느낌으로 등장할 것.\n")
+            return f"\n## 서브 캐릭터 등장: {name3}은(는) 이 에피소드에 등장하지 않을 것.\n"
+        else:
+            # b) 에피소드당 약 50% 확률로 전-결에만 등장
+            if rand.random() < 0.5:
+                return (f"\n## 서브 캐릭터 등장: {name3}은(는) 이 에피소드에서 "
+                        f"전(절정)과 결(마무리)에만 등장할 것.\n")
+            return f"\n## 서브 캐릭터 등장: {name3}은(는) 이 에피소드에 등장하지 않을 것.\n"
+
     # RAG Word 로드
     rag_word = "(단어 목록 없음)"
     rag_word_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "rag_word.txt")
@@ -501,6 +662,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
 
     guides_text_lines = []
     partner_guides_text_lines = []
+    sub_guides_text_lines = []
     ep_corruption_guides_map = {}
     config.special_writing_req = {}
 
@@ -511,7 +673,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
         ep_assign = min(_parse_ep_from_guide(guide, current_ep, config.guide_num, total_episodes), total_episodes)
         guides_text_lines.append(f"  EPISODE {ep_assign}: #{guide}")
         if ep_assign not in ep_corruption_guides_map:
-            ep_corruption_guides_map[ep_assign] = {"protagonist": [], "partner": []}
+            ep_corruption_guides_map[ep_assign] = {"protagonist": [], "partner": [], "sub": []}
         ep_corruption_guides_map[ep_assign]["protagonist"].append(guide)
         # $가 붙은 행동 keyword 추출하여 config.special_writing_req에 저장
         dollar_actions = _extract_dollar_actions(guide)
@@ -539,7 +701,7 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
         ep_assign = min(_parse_ep_from_guide(guide, current_ep, config.guide_num, total_episodes), total_episodes)
         partner_guides_text_lines.append(f"  EPISODE {ep_assign}: #{guide}")
         if ep_assign not in ep_corruption_guides_map:
-            ep_corruption_guides_map[ep_assign] = {"protagonist": [], "partner": []}
+            ep_corruption_guides_map[ep_assign] = {"protagonist": [], "partner": [], "sub": []}
         ep_corruption_guides_map[ep_assign]["partner"].append(guide)
         # $가 붙은 행동 keyword 추출하여 config.special_writing_req에 저장
         dollar_actions = _extract_dollar_actions(guide)
@@ -548,8 +710,28 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
                 config.special_writing_req[ep_assign] = []
             config.special_writing_req[ep_assign].extend(dollar_actions)
 
+    # [Phase B] 서브 캐릭터(3인자) 타락 가이드 매핑 (chr_num3=1)
+    sub_corruption_guides = getattr(config, 'sub_corruption_guides', []) or []
+    if getattr(config, 'chr_num3', 0) == 1 and sub_corruption_guides:
+        current_ep = 1
+        for idx, guide in enumerate(sub_corruption_guides):
+            if idx > 0 and idx % config.guide_num == 0:
+                current_ep = min(current_ep + 1, total_episodes)
+            ep_assign = min(_parse_ep_from_guide(guide, current_ep, config.guide_num, total_episodes), total_episodes)
+            sub_guides_text_lines.append(f"  EPISODE {ep_assign}: #{guide}")
+            if ep_assign not in ep_corruption_guides_map:
+                ep_corruption_guides_map[ep_assign] = {"protagonist": [], "partner": [], "sub": []}
+            ep_corruption_guides_map[ep_assign]["sub"].append(guide)
+            # $가 붙은 행동 keyword 추출하여 config.special_writing_req에 저장
+            dollar_actions = _extract_dollar_actions(guide)
+            if dollar_actions:
+                if ep_assign not in config.special_writing_req:
+                    config.special_writing_req[ep_assign] = []
+                config.special_writing_req[ep_assign].extend(dollar_actions)
+
     guides_text = "\n".join(guides_text_lines) if guides_text_lines else "(없음)"
     partner_guides_text = "\n".join(partner_guides_text_lines) if partner_guides_text_lines else "(없음)"
+    sub_guides_text = "\n".join(sub_guides_text_lines) if sub_guides_text_lines else "(없음)"
     config.ep_corruption_guides_map = ep_corruption_guides_map
 
     # -------------------------------------------------------------------------
@@ -570,6 +752,8 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
         phase3_start=phase3_start, phase3_end=phase3_end, phase4_start=phase4_start,
         total_episodes=total_episodes, phase_transition_text=phase_transition_text,
         rag_word=rag_word, guides_text=guides_text, partner_guides_text=partner_guides_text,
+        sub_sheet_block=(f"\n* 서브 캐릭터: {sub_sheet}\n" if sub_sheet else ""),
+        sub_guides_text=sub_guides_text,
         first_event=getattr(config, 'first_event', ''),
         second_event=getattr(config, 'second_event', ''),
         import_point=getattr(config, 'import_point', '')
@@ -592,13 +776,17 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
     if callback: callback(f"[캐릭터 시트] EPISODE 1 초기 시트 저장...")
     config.episode_protagonist_sheets[0] = protagonist_sheet
     config.episode_partner_sheets[0] = partner_sheet
+    config.episode_sub_sheets[0] = sub_sheet
     _save_character_sheet_json({"protagonist": _parse_sheet_to_dict(protagonist_sheet),
-                                 "partner": _parse_sheet_to_dict(partner_sheet)}, 1, plot_hash)
+                                 "partner": _parse_sheet_to_dict(partner_sheet),
+                                 "sub": _parse_sheet_to_dict(sub_sheet) if sub_sheet else {}}, 1, plot_hash)
     cs_log_file.write(f"{'=' * 60}\n")
     cs_log_file.write(f"[Episode 1] 초기 캐릭터 시트\n")
     cs_log_file.write(f"{'=' * 60}\n")
     cs_log_file.write(f"\n### 주인공 시트 ###\n\n{protagonist_sheet}\n")
     cs_log_file.write(f"\n### 상대방 시트 ###\n\n{partner_sheet}\n")
+    if sub_sheet:
+        cs_log_file.write(f"\n### 서브 캐릭터 시트 ###\n\n{sub_sheet}\n")
     cs_log_file.write(f"\n{'-' * 60}\n\n")
     cs_log_file.flush()
 
@@ -609,6 +797,8 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
         guide_parts.append(f"- 주인공 가이드: {', '.join([f'#{g}' for g in ep_guides['protagonist']])}")
     if ep_guides["partner"]:
         guide_parts.append(f"- 상대방 가이드: {', '.join([f'#{g}' for g in ep_guides['partner']])}")
+    if ep_guides.get("sub"):
+        guide_parts.append(f"- 서브캐릭터 가이드: {', '.join([f'#{g}' for g in ep_guides['sub']])}")
     guides_desc = f"\n## 에피소드 가이드, 가장 중요함:  아래 주인공, 상대방 가이드를 잘 이해하고 기승전결 작성에 무조건 반영하세요!:\n" + "\n".join(guide_parts)
 
     # EP1 현재 상태 추가
@@ -618,7 +808,8 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
 
     if callback: callback("[2/3] 에피소드 생성 중... (EPISODE 1)")
     prompt_ep1 = _build_prompt(prompts["ep1_prompt"], name1=name1, name2=name2, guides_desc=guides_desc, 
-        import_point=getattr(config, 'import_point', ''))
+        import_point=getattr(config, 'import_point', ''),
+        sub_appearance_hint=_roll_sub_appearance(1))
     result, plot_messages = call_openai_for_plot(prompt_ep1, messages=plot_messages, log_fn=log)
     ep1_text = result.strip()
     all_episodes = ep1_text
@@ -626,16 +817,20 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
 
     # EP1 생성 후 character_sheet 업데이트 → EP2로 저장 (다음 에피소드용)
     if callback: callback(f"[캐릭터 시트] EPISODE 2 시트 생성 (EP1 반영)...")
-    new_proto, new_part = _update_character_sheets_via_api(
-        ep1_text, 2, protagonist_sheet, partner_sheet, name1, name2, log_fn=log
+    new_proto, new_part, new_sub = _update_character_sheets_via_api(
+        ep1_text, 2, protagonist_sheet, partner_sheet, name1, name2, log_fn=log,
+        current_sub=sub_sheet
     )
     config.episode_protagonist_sheets[1] = new_proto
     config.episode_partner_sheets[1] = new_part
+    config.episode_sub_sheets[1] = new_sub
     cs_log_file.write(f"{'=' * 60}\n")
     cs_log_file.write(f"[Episode 2] 캐릭터 시트 (EP1 반영)\n")
     cs_log_file.write(f"{'=' * 60}\n")
     cs_log_file.write(f"\n### 주인공 시트 ###\n\n{new_proto}\n")
     cs_log_file.write(f"\n### 상대방 시트 ###\n\n{new_part}\n")
+    if new_sub:
+        cs_log_file.write(f"\n### 서브 캐릭터 시트 ###\n\n{new_sub}\n")
     cs_log_file.write(f"\n### 에피소드 요약 ###\n\n{ep1_text}\n")
     cs_log_file.write(f"\n{'-' * 60}\n\n")
     cs_log_file.flush()
@@ -688,6 +883,8 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
                 guide_parts.append(f"  - 주인공 가이드: {', '.join([f'#{g}' for g in ep_guides['protagonist']])}")
             if ep_guides["partner"]:
                 guide_parts.append(f"  - 상대방 가이드: {', '.join([f'#{g}' for g in ep_guides['partner']])}")
+            if ep_guides.get("sub"):
+                guide_parts.append(f"  - 서브캐릭터 가이드: {', '.join([f'#{g}' for g in ep_guides['sub']])}")
             guides_desc = f"\n## 에피소드 가이드, 가장 중요함:  아래 주인공, 상대방 가이드를 잘 이해하고 기승전결 작성에 무조건 반영하세요!:\n" + "\n".join(guide_parts)
 
         # EP{i} 현재 상태 추가
@@ -734,7 +931,8 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
         prompt_epi = _build_prompt(
             prompt_tpl, i=i, **{'i-1': i-1}, guides_desc=guides_desc, special_desc=special_desc,
             level_desc=level_desc, name1=name1, name2=name2, genre_tone=genre_tone,
-            import_point=getattr(config, 'import_point', '')
+            import_point=getattr(config, 'import_point', ''),
+            sub_appearance_hint=_roll_sub_appearance(i)
         )
         ep_result, plot_messages = call_openai_for_plot(prompt_epi, messages=plot_messages, log_fn=log)
         ep_text = ep_result.strip()
@@ -744,17 +942,22 @@ def plot_gen_extended(template_id, total_episodes=12, theme_msg=None,
         if callback: callback(f"[캐릭터 시트] EPISODE {i+1} 시트 생성 (EP{i} 반영)...")
         current_proto = config.episode_protagonist_sheets[i - 2]
         current_part = config.episode_partner_sheets[i - 2]
-        new_proto, new_part = _update_character_sheets_via_api(
-            ep_text, i + 1, current_proto, current_part, name1, name2, log_fn=log
+        current_sub = config.episode_sub_sheets[i - 2] if i - 2 < len(config.episode_sub_sheets) else ""
+        new_proto, new_part, new_sub = _update_character_sheets_via_api(
+            ep_text, i + 1, current_proto, current_part, name1, name2, log_fn=log,
+            current_sub=current_sub
         )
         config.episode_protagonist_sheets[i - 1] = new_proto
         config.episode_partner_sheets[i - 1] = new_part
+        config.episode_sub_sheets[i - 1] = new_sub
         config.episode_content[i - 1] = ep_text
         cs_log_file.write(f"{'=' * 60}\n")
         cs_log_file.write(f"[Episode {i+1}] 캐릭터 시트 (EP{i} 반영)\n")
         cs_log_file.write(f"{'=' * 60}\n")
         cs_log_file.write(f"\n### 주인공 시트 ###\n\n{new_proto}\n")
         cs_log_file.write(f"\n### 상대방 시트 ###\n\n{new_part}\n")
+        if new_sub:
+            cs_log_file.write(f"\n### 서브 캐릭터 시트 ###\n\n{new_sub}\n")
         cs_log_file.write(f"\n### 에피소드 요약 ###\n\n{ep_text}\n")
         cs_log_file.write(f"\n{'-' * 60}\n\n")
         cs_log_file.flush()

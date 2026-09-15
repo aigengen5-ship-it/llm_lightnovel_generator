@@ -30,6 +30,7 @@ episode_full_track = [False for _ in range(total_episodes)]
 # Episode별 캐릭터 시트 배열 (plot_gen에서 동적 생성)
 episode_protagonist_sheets = []
 episode_partner_sheets = []
+episode_sub_sheets = []  # 서브 캐릭터 시트 (chr_num3=1, 비어있으면 2인 모드)
 
 # Character A
 name = ""
@@ -55,6 +56,31 @@ outfit2 = "일상복"
 appearance2 = "평범한 일상복"
 personality2 = "착함"
 talking_style2 = "평범하게 말함"
+
+# Character C (서브 캐릭터) — chr_num3=1 시 활성화 (0이면 완전 2인 모드)
+chr_num3 = 0
+name3 = ""
+sex3 = ""
+nationality3 = ""
+age3 = 0
+job3 = ""
+outfit3 = "일상복"
+appearance3 = ""
+personality3 = ""
+talking_style3 = ""
+# 상세 외모 (여성 서브 캐릭터 전용, 주인공 스타일 character sheet)
+hair_color3 = ""
+hair_style3 = ""
+eye_color3 = ""
+skin_color3 = ""
+face_style3 = ""
+acc3 = ""
+breasts_size3 = -1
+hip_size3 = -1
+body_size3 = -1
+sub_relationship = ""           # 주인공과의 관계 (가족/연인/친구/동료/같은 조직(원수관계) 등)
+sub_corruption_role = ""        # 스토리에서의 역할 (같이 타락/뻇김/원수 갚는 대상)
+sub_femboy = False              # 남자 서브 캐릭터 펨보이화 (50% 랜덤, 중반/후반에 진행)
 
 # Appearance (Character A)
 hair_color = ""
@@ -112,6 +138,7 @@ body_change = None                 # 신체 변화 dict
 body_change_sign = ""              # 신체 변화 징후
 corruption_guides = ""             # 타락 가이드 텍스트
 partner_corruption_guides = ""     # 파트너 타락 가이드 텍스트
+sub_corruption_guides = ""         # 서브 캐릭터(3인자) 타락 가이드 텍스트
 
 # 트리거 (theme_gen에서 생성)
 abnormal_trigger = ""              # 비정상 트리거
@@ -208,8 +235,24 @@ review_notes = ["" for _ in range(total_episodes)]     # LLM 리뷰 요약 JSON 
 # EP별 특별 작성 요청 ($가 포함된 가이드에서 추출)
 special_writing_req = {} 
 
+# 타락 테마 런타임 변수 (theme_gen_auto에서 setattr 해오던 것 — export/restore 조용한 누락 방지용 명시 정의)
+change_awareness = ""              # 변화 인지 (theme_gen_auto: _resolve_template 결과)
+corruption_flow = {}               # 타락 흐름 dict {name, desc, flow}
+corruption_reason = ""             # 타락 사유
+resistance_reason = ""             # 저항 사유
+
+# Extended: 성경험 카운터 (plot_gen VARS["counter_keys"] 및 export_config_to_file 정합성용)
+sex_count = 0
+masturbation_count = 0    # 자위
+patting_count = 0         # 패팅
+normal_sex_count = 0      # 정상위 섹스
+reverse_sex_count = 0     # 후배위 섹스
+cowboy_sex_count = 0      # 기승위 섹스
+anal_sex_count = 0        # 애널섹스
+pose_sex_count = 0        # 천박한 섹스 포즈
+
 # EP별 타락 가이드 맵 (plot_gen에서 생성, full_episode_gen에서 친밀도 판별에 사용)
-ep_corruption_guides_map = {}  # EP 번호 → {"protagonist": [...], "partner": [...]}
+ep_corruption_guides_map = {}  # EP 번호 → {"protagonist": [...], "partner": [...], "sub": [...]}
 
 # OpenAPI
 stream_enb = False

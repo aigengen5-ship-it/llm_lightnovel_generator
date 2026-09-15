@@ -46,6 +46,18 @@ def name_define(flag = True):
         if config.name2 == "" or flag == True:
             config.name2 = random_prompt(name_tag2_path, -1)
 
+    # Character C setup (서브 캐릭터, chr_num3=1 시)
+    if getattr(config, 'chr_num3', 0) == 1:
+        if config.nationality3 == "" or flag == True:
+            config.nationality3 = nationality_tag[1] # Default to japanese
+            if config.sex3 == "여자":
+                nametag3 = "female"
+            else:
+                nametag3 = "male"
+            name_tag3_path = "./data/name/" + nametag3 + "_" + config.nationality3 + ".txt"
+            if config.name3 == "" or flag == True:
+                config.name3 = random_prompt(name_tag3_path, -1)
+
 def set_inc_relationship():
     """inc_flag=1: 가족애 모드 관계 설정 (관계 → 성별 → 직업/나이)"""
     # relation.txt 내용 통합
@@ -659,6 +671,46 @@ def partner_sheet():
     sheet_text += f"상대방 성격: {config.personality2}\n"
     sheet_text += f"상대방 말투: {config.talking_style2}\n"
     sheet_text += f"상대방 복장: {getattr(config, 'outfit2', getattr(config, 'opponent_outfit', '미설정'))}\n"
+    return sheet_text
+
+
+def sub_size_text(dic_key, idx):
+    """body_dic 인덱스를 안전한 텍스트로 변환 (서브 캐릭터 체형용)."""
+    lst = config.body_dic.get(dic_key, []) if getattr(config, 'body_dic', None) else []
+    if isinstance(idx, int) and 0 <= idx < len(lst):
+        return lst[idx]
+    return "미설정"
+
+
+def sub_sheet():
+    """서브 캐릭터(3인자)의 설정을 보여주는 시트를 생성합니다. (chr_num3=1)
+
+    성별 기반:
+      - 여성: 상세 character sheet (머리색/헤어스타일/눈/피부/얼굴/액세서리/체형)
+      - 남성: 상대방 캐릭터 제작 정보 (appearance3)
+    """
+    sheet_text = "## 서브 캐릭터 시트 ##\n"
+    sheet_text += f"서브 캐릭터 이름: {config.name3}\n"
+    sheet_text += f"서브 캐릭터 나이: {config.age3}\n"
+    sheet_text += f"서브 캐릭터 성별: {config.sex3}\n"
+    sheet_text += f"서브 캐릭터 직업: {config.job3}\n"
+    sheet_text += f"주인공({config.name})과의 관계: {config.sub_relationship}\n"
+    if config.sex3 == "여자" and getattr(config, 'hair_color3', ''):
+        sheet_text += f"머리색: {config.hair_color3}\n"
+        sheet_text += f"헤어스타일: {config.hair_style3}\n"
+        sheet_text += f"눈 색깔: {config.eye_color3}\n"
+        sheet_text += f"피부 색깔: {config.skin_color3}\n"
+        sheet_text += f"얼굴 스타일: {config.face_style3}\n"
+        sheet_text += f"액세서리: {config.acc3}\n"
+        sheet_text += f"가슴 크기: {sub_size_text('breasts_size', config.breasts_size3)}\n"
+        sheet_text += f"엉덩이 크기: {sub_size_text('hip_size', config.hip_size3)}\n"
+        sheet_text += f"몸매: {sub_size_text('body_size', config.body_size3)}\n"
+    else:
+        sheet_text += f"서브 캐릭터 외모: {config.appearance3}\n"
+    sheet_text += f"서브 캐릭터 성격: {config.personality3}\n"
+    sheet_text += f"서브 캐릭터 말투: {config.talking_style3}\n"
+    sheet_text += f"서브 캐릭터 복장: {getattr(config, 'outfit3', '미설정')}\n"
+    sheet_text += f"스토리에서의 역할: {config.sub_corruption_role}\n"
     return sheet_text
 
 

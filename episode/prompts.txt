@@ -11,7 +11,7 @@
 
 ### 파트너 {name2} 캐릭터 시트:
 {partner_sheet}
-{request_extended}
+{sub_sheet_block}{request_extended}
 {prev_episode_ref}
 
 ### 현 에피소드 {name}의 상태 

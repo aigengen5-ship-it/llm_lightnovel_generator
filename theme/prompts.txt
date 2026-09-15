@@ -34,6 +34,7 @@
 * 말투: {talking_style2}
 * 성격: {personality2}
 
+{sub_character_block}
 먼저 이 지식을 이해하세요. 
 
 ======introduction_prompt======
@@ -45,7 +46,7 @@
 * 첫번째 스토리 시작 이벤트(가장 중요함, 에피소드 1 전체를 할당하고 개연성을 꼭 확보할 것. 내용을 바꿔서라도 개연성을 유지할 것) : 
 {first_event}
 * {name}의 정신적 변화를 만드는 첫번째 트리거: {first_trigger}
-
+{sub_character_block}
 ## '기-승' 단계 행동 참고 (Phase 1):
 ** 중요 **: 스토리 개연성에 맞게(!) 수정하여 사용할 것.
 {intro_actions_text}
@@ -61,7 +62,7 @@
 {events_text}
 
 ## 가이드 생성 규칙
-전체 가이드 수는 정확히 {intro_guide_count}개(주인공 {intro_guide_count}개, 상대방 {intro_guide_count}개)여야 하며, 이를 {intro_episode_count}개의 에피소드(에피소드 1~{intro_end_ep})로 나누어 출력하라. 절대 임의로 개수를 늘리거나 줄이지 마라.
+전체 가이드 수는 정확히 {intro_guide_count}개(주인공 {intro_guide_count}개, 상대방 {intro_guide_count}개{sub_count_text})여야 하며, 이를 {intro_episode_count}개의 에피소드(에피소드 1~{intro_end_ep})로 나누어 출력하라. 절대 임의로 개수를 늘리거나 줄이지 마라.
 에피소드 당 가이드 {guide_num}개씩 작성.
 **중요**: 각 가이드의 연결은 유기적이어야 함.
 
@@ -77,7 +78,7 @@ EPISODE 1
 GUIDE 1: {name}의 행동에 따른 반응
 GUIDE 2: {name}의 행동에 따른 반응
 (이 형식을 반복하여 에피소드 {intro_end_ep}까지 작성)
-
+{sub_guide_block}
 **마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
 
 ======crisis_guides_prompt======
@@ -94,7 +95,7 @@ GUIDE 2: {name}의 행동에 따른 반응
 * 사랑에 빠지는 흐름: {corruption_flow_name} - {corruption_flow_desc} ({corruption_flow_flow})
 * 첫번째 이벤트가 어떤 식으로 스토리에 맞추어 바뀌는지 꼭 묘사.
 {first_event}
-
+{sub_character_block}
 ## '전' 단계 행동 참고 (Phase 2):
 ** 중요 **: 스토리 개연성에 맞게(!) 수정하여 사용할 것.
 {crisis_actions_text}
@@ -129,7 +130,7 @@ GUIDE 2: {name}의 행동에 따른 반응
 {resistance_reason}
 
 ## 가이드 생성 규칙
-전체 가이드 수는 정확히 {crisis_guide_count}개(주인공 {crisis_guide_count}개, 상대방 {crisis_guide_count}개)여야 하며, 이를 {crisis_episode_count}개의 에피소드(에피소드 {crisis_start_ep}~{crisis_end_ep})로 나누어 출력하라.
+전체 가이드 수는 정확히 {crisis_guide_count}개(주인공 {crisis_guide_count}개, 상대방 {crisis_guide_count}개{sub_count_text})여야 하며, 이를 {crisis_episode_count}개의 에피소드(에피소드 {crisis_start_ep}~{crisis_end_ep})로 나누어 출력하라.
 에피소드 당 가이드 {guide_num}개씩 작성.
 
 1. 출력 구조 (필수 준수):
@@ -144,7 +145,7 @@ EPISODE {crisis_start_ep}
 GUIDE 1: {name}의 행동에 따른 반응
 GUIDE 2: {name}의 행동에 따른 반응
 (이 형식을 반복하여 에피소드 {crisis_end_ep}까지 작성)
-
+{sub_guide_block}
 **마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
 
 ======ending_guides_prompt======
@@ -160,7 +161,7 @@ GUIDE 2: {name}의 행동에 따른 반응
 * 최종 결말 상태: {selected_ending}. 최후의 일선을 넘음.
 * 첫번째 이벤트가 어떤 식으로 스토리에 맞추어 바뀌는지 꼭 묘사.
 {first_event}
-
+{sub_character_block}
 ## '결' 단계 행동 참고 (Phase 3):
 ** 중요 **: 스토리 개연성에 맞게(!) 수정하여 사용할 것.
 {ending_actions_text}
@@ -192,7 +193,7 @@ GUIDE 2: {name}의 행동에 따른 반응
 {import_point}
 
 ## 가이드 생성 규칙
-전체 가이드 수는 정확히 {ending_guide_count}개(주인공 {ending_guide_count}개, 상대방 {ending_guide_count}개)여야 하며, 이를 {ending_episode_count}개의 에피소드(에피소드 {ending_start_ep}~{ending_end_ep})로 나누어 출력하라.
+전체 가이드 수는 정확히 {ending_guide_count}개(주인공 {ending_guide_count}개, 상대방 {ending_guide_count}개{sub_count_text})여야 하며, 이를 {ending_episode_count}개의 에피소드(에피소드 {ending_start_ep}~{ending_end_ep})로 나누어 출력하라.
 에피소드 당 가이드 {guide_num}개씩 작성. 마지막 가이드는 {selected_ending}의 모습으로 완벽하게 마무리할 것.
 
 1. 출력 구조 (필수 준수):
@@ -207,7 +208,7 @@ EPISODE {ending_start_ep}
 GUIDE 1: ~
 GUIDE 2: ~
 (이 형식을 반복하여 에피소드 {ending_end_ep}까지 작성)
-
+{sub_guide_block}
 **마크다운 강조(**, *) 없이 평문으로만 출력하세요.**
 
 ======review_prompt======
@@ -240,7 +241,7 @@ Note: 에피소드 {crisis_start_ep}, {ending_start_ep}의 큰 시간 흐름은 
 9. 2개의 사건이 꼭 반영되어야 함.
 * 첫번째 스토리 시작 이벤트(가장 중요함!) : {first_event}
 * 마지막 큰 위기(가장 중요함!) : {second_event}
-
+{sub_review_block}
 ## 에피소드/가이드 결과물
 {guides_result}
 
@@ -279,7 +280,7 @@ EPISODE 1
 GUIDE 1: ~
 GUIDE 2: ~
 (이 형식을 반복하여 에피소드 {num_episodes}까지 작성)
-
+{sub_guide_block}
 
 ======revision_retry_prompt======
 편집자 리뷰 결과를 바탕으로 기존 가이드를 수정해줘.
@@ -307,7 +308,7 @@ EPISODE 1
 GUIDE 1: ~
 GUIDE 2: ~
 (이 형식을 반복하여 에피소드 {num_episodes}까지 작성)
-
+{sub_guide_block}
 
 ======genre_text======
 장르적 특성을 살려
@@ -329,7 +330,7 @@ GUIDE 2: ~
 ## 상대방 정보
 * 이름: {name2}
 * 상대방 직업: {job2}
-
+{sub_info_block}
 ## 둘 사이의 관계
 {selected_relationship}
 
@@ -390,7 +391,7 @@ GUIDE 2: ~
 
 13. 결 행동 (Phase 3, {ending_actions_count}개):
 {ending_actions_list}
-
+{sub_update_items}
 **출력 형식**: 반드시 아래 JSON 형식으로만 출력하세요. 다른 설명은 포함하지 마세요.
 
 ```json
@@ -407,7 +408,7 @@ GUIDE 2: ~
   "relationship": "수정된 관계 설정",
   "intro_actions": ["수정된 기-승 행동 1", "수정된 기-승 행동 2"],
   "crisis_actions": ["수정된 전 행동 1", "수정된 전 행동 2"],
-  "ending_actions": ["수정된 결 행동 1", "수정된 결 행동 2"]
+  "ending_actions": ["수정된 결 행동 1", "수정된 결 행동 2"]{sub_json_block}
 }}
 ```
 

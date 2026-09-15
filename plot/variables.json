@@ -120,7 +120,7 @@
     "temperature": 0.5,
     "top_p": 0.95,
     "stream": false,
-    "timeout": 120.0,
+    "timeout": 600.0,
     "repeat_penalty": 1.1,
     "top_k": 64,
     "max_retries": 3,

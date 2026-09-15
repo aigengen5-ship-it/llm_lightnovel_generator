@@ -679,6 +679,19 @@ class LLMNovelGUI:
         if not inc_flag_set:
             config.inc_flag = 0
 
+        # [Phase C] 명령줄 chr_num3 값 재적용 (3인자 스위치)
+        chr_num3_set = False
+        for i, arg in enumerate(sys.argv):
+            if arg in ("-chr_num3", "--chr_num3") and i + 1 < len(sys.argv):
+                try:
+                    config.chr_num3 = int(sys.argv[i + 1])
+                    chr_num3_set = True
+                except ValueError:
+                    pass
+                break
+        if not chr_num3_set:
+            config.chr_num3 = 0
+
         # 로깅 설정
         log_dir = os.path.join("log")
         os.makedirs(log_dir, exist_ok=True)
@@ -894,25 +907,30 @@ class LLMNovelGUI:
                                 use_theme_agent = config.json_value.get("theme_agent", "no") == "yes"
                                 debug_msg += f"[DEBUG] theme_agent: {config.json_value.get('theme_agent', 'no')}\n"
                                 if use_theme_agent:
-                                    import theme_gen as theme_gen_module
-                                    story_info = f"""
+                                    theme_gen_module = llm_novel_gui_func.import_theme_gen(
+                                        llm_novel_gui_func.logger.info)
+                                    if theme_gen_module is None:
+                                        # [D2] theme_gen.py 없어서 건너뜀 (크래시 대신 안내)
+                                        debug_msg += "[WARN] theme_gen.py 가 없어 테마 업데이트를 건너뜁니다.\n"
+                                    else:
+                                        story_info = f"""
 스토리: {plot_text.split('\n')[0] if '\n' in plot_text else plot_text[:100]}
 테마: {getattr(config, 'plot', '')}
 주인공({config.name}, {getattr(config, 'age', '')}세)과 상대방({config.name2}, {getattr(config, 'age2', '')}세)의 이야기입니다.
 관계 설정 및 직업({getattr(config, 'job', '')} / {getattr(config, 'job2', '')})을 바탕으로 스토리가 전개됩니다.
 """
-                                    theme_result = theme_gen_module.generate_updated_theme(
-                                        story_info,
-                                        num_episodes=config.total_episodes,
-                                        log_fn=llm_novel_gui_func.logger.info
-                                    )
-                                    config.plot = theme_result["theme"]
-                                    config.theme_breeds = theme_result["breeds"]
-                                    config.theme_jinshugai = theme_result["jinshugai"]
-                                    config.theme_events = theme_result["events"]
-                                    config.plot_result = plot_text + f"\n\n[업데이트된 테마]\n{theme_result['theme']}"
-                                    debug_msg += f"[DEBUG] 테마 업데이트 완료\n\n{theme_result['theme']}\n"
-                                    plot_text += f"\n\n[업데이트된 테마]\n{theme_result['theme']}"
+                                        theme_result = theme_gen_module.generate_updated_theme(
+                                            story_info,
+                                            num_episodes=config.total_episodes,
+                                            log_fn=llm_novel_gui_func.logger.info
+                                        )
+                                        config.plot = theme_result["theme"]
+                                        config.theme_breeds = theme_result["breeds"]
+                                        config.theme_jinshugai = theme_result["jinshugai"]
+                                        config.theme_events = theme_result["events"]
+                                        config.plot_result = plot_text + f"\n\n[업데이트된 테마]\n{theme_result['theme']}"
+                                        debug_msg += f"[DEBUG] 테마 업데이트 완료\n\n{theme_result['theme']}\n"
+                                        plot_text += f"\n\n[업데이트된 테마]\n{theme_result['theme']}"
                             
                             # config_export.yaml 저장 (1번 플롯 생성 후)
                             export_path = os.path.join("data", "config_export.yaml")
@@ -1590,6 +1608,18 @@ class LLMNovelGUI:
                                 break
                         if not inc_flag_set:
                             config.inc_flag = 0
+                        # [Phase C] 명령줄 chr_num3 값 재적용 (3인자 스위치)
+                        chr_num3_set = False
+                        for i, arg in enumerate(sys.argv):
+                            if arg in ("-chr_num3", "--chr_num3") and i + 1 < len(sys.argv):
+                                try:
+                                    config.chr_num3 = int(sys.argv[i + 1])
+                                    chr_num3_set = True
+                                except ValueError:
+                                    pass
+                                break
+                        if not chr_num3_set:
+                            config.chr_num3 = 0
 
                         def _auto_cb(step: str, status: str, content: str):
                             self.content_text = content
@@ -1860,6 +1890,16 @@ def main() -> None:
                 pass
             break
 
+    # [Phase C] -chr_num3 인자 파싱 (3인자 스위치: 1 = 서브 캐릭터 사용)
+    cmd_chr_num3 = None
+    for i, arg in enumerate(sys.argv):
+        if arg in ("-chr_num3", "--chr_num3") and i + 1 < len(sys.argv):
+            try:
+                cmd_chr_num3 = int(sys.argv[i + 1])
+            except ValueError:
+                pass
+            break
+
     auto_mode = len(sys.argv) > 1 and sys.argv[1] in ("auto", "--auto", "-a")
 
     # config_export.yaml 로드로 덮어씌워진 명령행 인자 재적용
@@ -1873,6 +1913,8 @@ def main() -> None:
         config.cmd_job = cmd_job
     if cmd_job2 is not None:
         config.cmd_job2 = cmd_job2
+    if cmd_chr_num3 is not None:
+        config.chr_num3 = cmd_chr_num3
 
     gui = LLMNovelGUI()
 

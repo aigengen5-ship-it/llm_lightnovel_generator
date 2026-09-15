@@ -24,7 +24,7 @@
 ## 4. 캐릭터 및 관계성
 * 주인공: {protagonist_sheet}
 * 상대방: {partner_sheet}
-* 관계성: {relationship_desc}
+{sub_sheet_block}* 관계성: {relationship_desc}
 * {name1}의 '애정' 진행도: {persona_text}
 
 ======ep1_prompt======
@@ -34,7 +34,7 @@
 {import_point}
 
 {guides_desc}
-
+{sub_appearance_hint}
 ## 지시사항
 1. 에피소드 1은 {name1}과(와) {name2}의 **평온한 일상**과 **트리거 이전의 모습**을 묘사하세요.
    - 일상적인 대화, 성격, 관계성을 자연스럽게 보여주세요.
@@ -64,7 +64,7 @@
 
 ## 지시사항
 1. 진행 내용(가장 중요!!)
-{guides_desc}{special_desc}
+{guides_desc}{special_desc}{sub_appearance_hint}
 1.a. 진행 단계: {level_desc}
 {genre_tone}
 
@@ -96,7 +96,7 @@
 
 ## 지시사항
 1. 진행 내용(가장 중요!!)
-{guides_desc}{special_desc}
+{guides_desc}{special_desc}{sub_appearance_hint}
 1.a. 진행 단계: {level_desc}
 {genre_tone}
 
@@ -176,7 +176,7 @@ EPISODE 3: '전' 단계에서 애정 묘사가 너무 점잖음.
 ## 현재 상대방 시트
 {current_partner}
 
-## EPISODE {ep_num} 내용
+{current_sub_block}## EPISODE {ep_num} 내용
 {episode_text}
 
 ## 지시사항
@@ -189,6 +189,7 @@ EPISODE 3: '전' 단계에서 애정 묘사가 너무 점잖음.
    - 복장 변화
    - 행복도, 관계도 (love_value): 이전 값에서 증가/감소만 적용, 절대 0으로 초기화 금지
    - 기타 특징 (personality_text): 에피소드에서 일어난 모든 변화를 요약하여 기존 변화에 추가하거나, 수정할 것. 또한 외모, 말투, 감정의 변화등 모든 변화점을 '아주' 자세하게 쓸 것.
+{sub_instruction}
 4. 아래 JSON 형식으로 출력하세요 (설명 추가 금지):
 {{
   "protagonist": {{
@@ -221,5 +222,5 @@ EPISODE 3: '전' 단계에서 애정 묘사가 너무 점잖음.
     "appearance": "~",
     "personality": "~",
     "clothes": "~"
-  }}
+  }}{sub_json_block}
 }}

@@ -14,9 +14,48 @@ theme_gen_auto.py, full_episode_gen.py, plot_gen.py, anima_gen.py, story_gen.py�
 import os
 import time
 import random as rand
-from openai import OpenAI, APITimeoutError, APIStatusError
+from openai import OpenAI, APITimeoutError, APIStatusError, APIConnectionError
 
 import config
+
+
+# =====================================================================
+# 모델 id 결정
+# =====================================================================
+
+# plot.json 의 mainLLM 값 → 서버가 서빙하는 모델 id 매핑 (기존 동작)
+LLM_MODEL_MAP = {"gemma": "gemma-4-31B-it", "qwen": "Qwen/Qwen3.8-27B"}
+
+
+def resolve_model() -> str:
+    """chat.completions 에 보낼 모델 id 를 결정한다 (plot.json 기준).
+
+    1) `model_main` : 지정하면 그대로 사용. 서버의 `/v1/models` id 와 일치해야 한다.
+       (서버가 다른 id 로 서빙될 때 코드 수정 없이 대응하기 위한 탈출구)
+    2) `mainLLM`    : "qwen" → Qwen/Qwen3.8-27B, 그 외 → gemma-4-31B-it (기존 동작 유지)
+
+    참고: plot/variables.json 의 api_settings.model 은 어느 쪽에서도 읽지 않는 죽은 값이다.
+    """
+    jv = config.get_json_value()
+    override = str(jv.get("model_main", "") or "").strip()
+    if override:
+        return override
+    main_llm = str(jv.get("mainLLM", "gemma") or "gemma").strip().lower()
+    return LLM_MODEL_MAP.get(main_llm, "gemma-4-31B-it")
+
+
+def resolve_timeout(default: float = 600.0) -> float:
+    """스트리밍(story_gen/full_episode_gen) 호출의 요청 타임아웃(초). plot.json 기준.
+
+    reasoning 모델은 완료 토큰의 70% 이상이 사고에 쓰여 1회 호출에 200초를 넘기는 일이 많다
+    (실측: 캐릭터 시트 업데이트 1회 179~216초, completion 4109 중 reasoning 3261).
+    기존에는 300초 하드코딩이었다.
+    """
+    try:
+        v = float(config.get_json_value().get("timeout_main", default))
+        return v if v > 0 else default
+    except (TypeError, ValueError):
+        return default
 
 
 # =====================================================================
@@ -28,7 +67,10 @@ def get_openai_client() -> OpenAI:
     api_key = os.environ.get("OPENAI_API_KEY", "gemma-4-31b")
     return OpenAI(
         base_url="http://" + config.get_json_value().get("ip_main", "192.168.1.162") + ":" + config.get_json_value()["port_main"] + "/v1",
-        api_key=api_key
+        api_key=api_key,
+        # [D7] SDK 기본 max_retries=2 를 끈다. 재시도는 아래 call_openai_* 의 루프가 혼자 담당해야
+        #      대기 시간이 예측 가능하다(켜두면 요청 1회 자체가 내부 3회로 불어난다).
+        max_retries=0,
     )
 
 
@@ -63,13 +105,13 @@ def call_openai_api(prompt_text: str, callback=None, info_lines=None, log_fn=Non
     while timeout_check == 0:
         try:
             response = client.chat.completions.create(
-                model="gemma-4-31B-it",
+                model=resolve_model(),
                 stream_options={"include": True} if config.stream_enb else None,
                 messages=config.messages_history,
                 temperature=temp,
                 top_p=top_p,
                 stream=config.stream_enb,
-                timeout=300.0,
+                timeout=resolve_timeout(),
                 extra_body={"repeat_penalty": repeat_penalty, "top_k": top_k}
             )
             timeout_check = 1
@@ -77,6 +119,18 @@ def call_openai_api(prompt_text: str, callback=None, info_lines=None, log_fn=Non
             print("서버 응답 시간이 초과되었습니다. 다시 시도합니다")
             if log_fn:
                 log_fn(f"[TIMEOUT] 서버 응답 시간 초과. 재시도 ({max_try + 1}/3)")
+            timeout_check = 0
+            max_try += 1
+            time.sleep(10)
+            if max_try > 3:
+                print("서버 죽음")
+                exit()
+        except APIConnectionError as e:
+            # [D5] 서버 다운/접속 거부는 APITimeoutError와 다른 계층(APIConnectionError)이라
+            #      기존 코드에서는 무처리 크래시했다. 타임아웃과 동일하게 재시도 후 종료.
+            print(f"서버 연결 실패: {e}. 다시 시도합니다 ({max_try + 1}/3)")
+            if log_fn:
+                log_fn(f"[CONN_ERROR] 서버 연결 실패. 재시도 ({max_try + 1}/3): {e}")
             timeout_check = 0
             max_try += 1
             time.sleep(10)
@@ -110,7 +164,7 @@ def call_openai_api(prompt_text: str, callback=None, info_lines=None, log_fn=Non
         config.messages_history.append({"role": "assistant", "content": full_response})
         return full_response
     else:
-        result = response.choices[0].message.content
+        result = response.choices[0].message.content or ""
         config.messages_history.append({"role": "assistant", "content": result})
         return result
 
@@ -164,8 +218,10 @@ def call_openai_for_plot(prompt_text: str, system_prompt: str = None, messages: 
     top_p = 0.95
 
     # 모델별 파라미터 설정
+    # [모델 결정 통합] 모델 id 는 resolve_model() 가 정하고, 아래 분기는 파라미터 조합만 결정한다
+    model = resolve_model()
+
     if main_llm == "qwen":
-        model = "Qwen/Qwen3.8-27B"
         extra_body = {
             "chat_template_kwargs": {
                 "enable_thinking": True,
@@ -176,7 +232,6 @@ def call_openai_for_plot(prompt_text: str, system_prompt: str = None, messages: 
         if log_fn:
             log_fn(f"[PLOT_PROMPT] model={model}, reasoning={reasoning_effort}, temp={temperature:.2f}\n{prompt_text}")
     else:
-        model = "gemma-4-31B-it"
         if repeat_penalty is None:
             repeat_penalty = 1.15
         top_k = 64
@@ -216,7 +271,31 @@ def call_openai_for_plot(prompt_text: str, system_prompt: str = None, messages: 
                     log_fn(f"[ERROR] 서버 응답 실패 ({max_retries}회 재시도 후)")
                 return "서버 응답 실패", messages
 
-    result = response.choices[0].message.content.strip()
+        except APIConnectionError as e:
+            # [D5] 접속 거부/서버 다운도 타임아웃과 동일하게 처리하여 호출부로 넘긴다
+            #      (호출부는 "서버 응답 실패"를 받아 기존 상태 유지를 유지한다).
+            print(f"서버 연결 실패: {e}. 다시 시도합니다 ({max_try + 1}/{max_retries})")
+            if log_fn:
+                log_fn(f"[CONN_ERROR] 서버 연결 실패. 재시도 ({max_try + 1}/{max_retries}): {e}")
+            timeout_check = 0
+            max_try += 1
+            time.sleep(retry_delay)
+            if max_try > max_retries:
+                if log_fn:
+                    log_fn(f"[ERROR] 서버 연결 실패 ({max_retries}회 재시도 후)")
+                return "서버 응답 실패", messages
+
+        except APIStatusError as e:
+            # [D6] 모델명 오탈자/미서빙(404) 같은 4xx 는 재시도로 복구되지 않는다.
+            #      그대로 올리되, 원인을 한 눈에 볼 있게 서버 메시지/모델/주소를 로그에 남긴다.
+            msg = (f"[API_ERROR] HTTP {e.status_code} (model={model}, base_url="
+                   f"{str(client.base_url)}): {getattr(e, 'message', e)}")
+            print(msg)
+            if log_fn:
+                log_fn(msg)
+            raise
+
+    result = (response.choices[0].message.content or "").strip()
     messages.append({"role": "assistant", "content": result})
 
     if log_fn:
@@ -259,7 +338,7 @@ def openAI_response(json_value, client, messages_history, user_input, op_mode, c
             messages=messages,
             temperature=0.7
         )
-        full_response = response.choices[0].message.content
+        full_response = response.choices[0].message.content or ""
     except Exception as e:
         if call_label:
             print(f"  [에러] {call_label}: {e}")

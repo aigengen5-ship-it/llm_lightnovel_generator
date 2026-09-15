@@ -137,14 +137,17 @@ def reset_config_state() -> None:
         _cmd_job2 = getattr(config, 'cmd_job2', None)
         _inc_flag = config.inc_flag
         _selected_jinshugai_id = getattr(config, 'selected_jinshugai_id', None)
-        logger.info("[reset] 백업: id=%s, job=%s, job2=%s", _selected_jinshugai_id, _cmd_job, _cmd_job2)
+        # chr_num3(3인자 스위치)는 importlib.reload(config) 시 0으로 초기화되어버리므로 백업/복원 대상
+        _chr_num3 = getattr(config, 'chr_num3', 0)
+        logger.info("[reset] 백업: id=%s, job=%s, job2=%s, chr_num3=%s", _selected_jinshugai_id, _cmd_job, _cmd_job2, _chr_num3)
         importlib.reload(config)
         # 명령줄 인자 값 복원
         config.cmd_job = _cmd_job
         config.cmd_job2 = _cmd_job2
         config.inc_flag = _inc_flag
         config.selected_jinshugai_id = _selected_jinshugai_id
-        logger.info("[reset] 복원 확인: id=%s, job=%s, job2=%s", config.selected_jinshugai_id, config.cmd_job, config.cmd_job2)
+        config.chr_num3 = _chr_num3
+        logger.info("[reset] 복원 확인: id=%s, job=%s, job2=%s, chr_num3=%s", config.selected_jinshugai_id, config.cmd_job, config.cmd_job2, config.chr_num3)
     except Exception as e:
         logger.error("Config 초기화 실패: %s", e)
 
@@ -285,6 +288,26 @@ def build_episode_full_track_table() -> str:
 # 에피소드 생성/보완/스토리 생성 (GUI와 분리)
 # -------------------------------------------------------------------------
 
+def import_theme_gen(log_fn=None):
+    """theme_agent 용 theme_gen 모듈을 안전하게 로드한다. [D2]
+
+    theme_gen.py 는 이 저장소에 존재하지 않는다(비교 대상 프로젝트도 동일하게 없음).
+    기존에는 plot.json 의 theme_agent=yes & theme_auto=no 조합에서
+    `import theme_gen` 이 ImportError 로 그대로 크래시했다.
+    → 모듈이 없으면 안내 로그 후 None 을 반환하여 호출부가 건너뛸 수 있게 한다.
+    """
+    try:
+        import theme_gen as theme_gen_module
+        return theme_gen_module
+    except ImportError as e:
+        msg = (f"[theme_agent] theme_gen 모듈을 불러오지 못해 테마 최적화를 건너뜁니다 ({e}). "
+               f"theme_gen.py 를 추가하거나 plot.json 에서 theme_agent=no / theme_auto=yes 를 사용하세요.")
+        logger.warning(msg)
+        if log_fn:
+            log_fn(msg)
+        return None
+
+
 def generate_episodes(callback=None):
     """
     에피소드 생성 (extended 모드 또는 표준 모드)
@@ -418,12 +441,19 @@ def export_config_to_file(filepath: str) -> str:
             "episode_full_content",
             "episode_full_original_content",
             "episode_full_track",
-            "episode_protagonist_sheets", "episode_partner_sheets",
+            "episode_protagonist_sheets", "episode_partner_sheets", "episode_sub_sheets",
             "name", "sex", "nationality", "age", "job", "job_attribute",
             "objective", "personality_real", "personality_text", "rel1", "rel1_update",
             "happiness",
             "name2", "sex2", "nationality2", "age2", "job2", "appearance2",
             "personality2", "outfit2", "talking_style2",
+            # 서브 캐릭터 (3인자, chr_num3=1)
+            # ※ Phase B에서 hair_color2/hair_length2/glasses2/eye_color2/skin_color2 도 추가 예정 (타깃 대비)
+            "chr_num3", "name3", "sex3", "nationality3", "age3", "job3",
+            "appearance3", "personality3", "outfit3", "talking_style3",
+            "hair_color3", "hair_style3", "eye_color3", "skin_color3",
+            "face_style3", "acc3", "breasts_size3", "hip_size3", "body_size3",
+            "sub_relationship", "sub_corruption_role", "sub_femboy",
             "hair_color", "hair_style", "eye_color", "eye_shape", "skin_color",
             "face_style", "acc", "clothes",
             "breasts_size", "hip_size", "body_size",
@@ -445,7 +475,7 @@ def export_config_to_file(filepath: str) -> str:
             "theme_body_change", "theme_corruption_elements",
             # 타락 가이드
             "corruption_elements", "body_change", "body_change_sign",
-            "corruption_guides", "partner_corruption_guides",
+            "corruption_guides", "partner_corruption_guides", "sub_corruption_guides",
             # 트리거
             "abnormal_trigger", "crisis_trigger",
             # 페르소나
@@ -692,7 +722,11 @@ def get_theme_auto_updated_vars() -> dict:
         # [15] LLM 테마 생성
         "plot",
         # [16] LLM 타락 가이드
-        "corruption_guides", "partner_corruption_guides",
+        "corruption_guides", "partner_corruption_guides", "sub_corruption_guides",
+        # [16-1] 서브 캐릭터 (3인자, chr_num3=1) — theme_gen_auto step 3-1-1에서 생성
+        #        타깃에는 없던 항목이지만, 메뉴1 스냅샷에서 3인자 설정이 소실되는 문제를 막기 위해 추가
+        "chr_num3", "name3", "sex3", "nationality3", "age3", "job3",
+        "sub_relationship", "sub_corruption_role", "sub_femboy",
         # [17] 최종 정리
         "theme_body_change", "theme_corruption_elements", "theme_jinshugai",
         "progression_array",
@@ -1191,22 +1225,23 @@ def run_auto_sequence(
         use_theme_agent = config.get_json_value().get("theme_agent", "no") == "yes"
         _menu1_logger.info(f"[10번] theme_agent={use_theme_agent}")
         if use_theme_agent and not use_theme_auto:
-            import theme_gen as theme_gen_module
-            story_info = f"""
+            theme_gen_module = import_theme_gen(_menu1_logger.info)
+            if theme_gen_module is not None:
+                story_info = f"""
 스토리: {plot_text.split('\n')[0] if '\n' in plot_text else plot_text[:100]}
 테마: {getattr(config, 'plot', '')}
 주인공({config.name}, {getattr(config, 'age', '')}세)과 상대방({config.name2}, {getattr(config, 'age2', '')}세)의 이야기입니다.
 관계 설정 및 직업({getattr(config, 'job', '')} / {getattr(config, 'job2', '')})을 바탕으로 스토리가 전개됩니다.
 """
-            theme_result = theme_gen_module.generate_updated_theme(
-                story_info, num_episodes=config.total_episodes
-            )
-            config.plot = theme_result["theme"]
-            config.theme_breeds = theme_result["breeds"]
-            config.theme_jinshugai = theme_result["jinshugai"]
-            config.theme_events = theme_result["events"]
-            config.plot_result = plot_text + f"\n\n[업데이트된 테마]\n{theme_result['theme']}"
-            _menu1_logger.info("[10번] theme_agent 업데이트 완료")
+                theme_result = theme_gen_module.generate_updated_theme(
+                    story_info, num_episodes=config.total_episodes
+                )
+                config.plot = theme_result["theme"]
+                config.theme_breeds = theme_result["breeds"]
+                config.theme_jinshugai = theme_result["jinshugai"]
+                config.theme_events = theme_result["events"]
+                config.plot_result = plot_text + f"\n\n[업데이트된 테마]\n{theme_result['theme']}"
+                _menu1_logger.info("[10번] theme_agent 업데이트 완료")
 
         export_config_to_file(export_path)
         cb("plot", "1번: 플롯 생성 완료", "[전체 자동 실행]\n\n1. 초기화 완료\n\n2. 1번: 플롯 생성 완료")

@@ -1,7 +1,9 @@
 {
     "extended": "yes",
     "ip_main": "gx10-a5a3",
-    "port_main": "8000",
+    "port_main": "18300",
+    "model_main": "qwen3.8-flash-next",
+    "timeout_main": "600",
     "mainLLM": "gemma",
     "ip_main_example": "gx10-a5a3",
     "port_main_example": "8000",

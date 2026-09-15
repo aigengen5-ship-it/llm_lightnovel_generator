@@ -125,6 +125,156 @@ def _load_theme_templates():
     return data["jinshugai_templates"]
 
 
+# -------------------------------------------------------------------------
+# [Phase B 2026-09-13] 서브 캐릭터(3인자, chr_num3=1) 헬퍼
+#   llm_shortnovel_generator_gui theme_gen_auto.py 에서 이식
+# -------------------------------------------------------------------------
+def _load_sub_character():
+    """theme/sub_character.yaml 로드 (서브 캐릭터 관계/역할, chr_num3=1 시 사용)
+
+    관계 항목은 두 포맷 지원:
+      - dict: {label, gender, age_delta, job_sync} (gender null = 랜덤, age_delta 기본 [-2, 2])
+      - str:  "가족 (여동생)" → {label: ..., gender: None, age_delta: [-2, 2], job_sync: False}
+    """
+    data = _load_theme_yaml("sub_character.yaml")
+    rels = []
+    for item in data.get("sub_relationships", []):
+        if isinstance(item, str):
+            rels.append({"label": item, "gender": None, "age_delta": [-2, 2], "job_sync": False})
+        else:
+            rels.append({
+                "label": item.get("label", ""),
+                "gender": item.get("gender"),
+                "age_delta": item.get("age_delta", [-2, 2]),
+                "job_sync": bool(item.get("job_sync", False)),
+            })
+    data["sub_relationships"] = rels
+    # 역할 항목: {name, desc, jinshugai_ids} 구조화 (하위 호환: 문자열/단일 key dict)
+    roles = []
+    for item in data.get("sub_corruption_roles", []):
+        if isinstance(item, dict) and "name" in item:
+            name = item.get("name", "")
+            desc = item.get("desc", "")
+            roles.append({
+                "text": f"{name}: {desc}" if desc else name,
+                "jinshugai_ids": list(item.get("jinshugai_ids", [])),
+            })
+        elif isinstance(item, dict):
+            # "이름: 설명" 형식이 YAML에서 단일 key dict로 파싱되는 경우
+            roles.append({
+                "text": " ".join(f"{k}: {v}" if v else str(k) for k, v in item.items()),
+                "jinshugai_ids": [],
+            })
+        else:
+            roles.append({"text": str(item), "jinshugai_ids": []})
+    data["sub_corruption_roles"] = roles
+    return data
+
+
+def _select_sub_corruption_role(roles, jinshugai_id, log_fn=None):
+    """서브 캐릭터 '망가지는' 역할 선택 — jinshugai ID 매칭 우선.
+
+    - config.selected_jinshugai_id와 jinshugai_ids가 매칭되는 역할 중 랜덤 선택
+    - 매칭 역할이 없으면: 역할이 전혀 없는 ID를 확인(로그) 후 전체 역할에서 랜덤 폴백
+    반환: 역할 텍스트 ("이름: 설명")
+    """
+    matching = [r for r in roles if jinshugai_id in r.get("jinshugai_ids", [])]
+    if matching:
+        return random.choice(matching)["text"]
+    covered = set()
+    for r in roles:
+        covered.update(r.get("jinshugai_ids", []))
+    try:
+        all_ids = sorted({t["id"] for t in _load_theme_templates() if t.get("id") is not None})
+    except Exception:
+        all_ids = []
+    missing = [i for i in all_ids if i not in covered]
+    if log_fn:
+        log_fn(f"[chr_num3] jinshugai id={jinshugai_id}에 매칭되는 역할이 없음 — "
+               f"역할이 없는 ID: {missing if missing else '없음'} (전체 역할에서 랜덤 선택)")
+    return random.choice(roles)["text"]
+
+
+def _derive_sub_gender_age(rel, protagonist_age):
+    """관계 항목에서 서브 캐릭터 (sex3, age3) 파생.
+
+    - gender: 남자/여자 고정 → 해당 성별, null → 50/50 랜덤
+    - age3: 주인공 나이 + age_delta 범위 랜덤, 18~60 clamp
+    """
+    gender = rel.get("gender")
+    sex3 = gender if gender in ("남자", "여자") else random.choice(["남자", "여자"])
+    lo, hi = rel.get("age_delta", [-2, 2])
+    age3 = protagonist_age + random.randint(lo, hi)
+    age3 = max(18, min(60, age3))
+    return sex3, age3
+
+
+def _build_sub_character_block():
+    """서브 캐릭터(3인자) 프롬프트 정보 블록 생성. chr_num3=0이면 빈 문자열.
+
+    주의: str.format으로 템플릿에 삽입되므로 블록 안에 { } 문자를 포함하면 안 됨.
+    """
+    if getattr(config, 'chr_num3', 0) != 1:
+        return ""
+    # 외모: 성별 기반 (여성=상세 시트 필드, 남성=appearance3)
+    if config.sex3 == "여자" and getattr(config, 'hair_color3', ''):
+        appearance_lines = (
+            f"* 머리색: {config.hair_color3} / 헤어스타일: {config.hair_style3}\n"
+            f"* 눈 색깔: {config.eye_color3} / 피부 색깔: {config.skin_color3}\n"
+            f"* 얼굴 스타일: {config.face_style3}\n"
+            f"* 액세서리: {config.acc3}\n"
+            f"* 가슴 크기: {character_setup.sub_size_text('breasts_size', config.breasts_size3)} / "
+            f"엉덩이 크기: {character_setup.sub_size_text('hip_size', config.hip_size3)} / "
+            f"몸매: {character_setup.sub_size_text('body_size', config.body_size3)}\n"
+        )
+    else:
+        appearance_lines = f"* 외모: {config.appearance3}\n"
+    return (
+        "## 서브 캐릭터 (3인자)\n"
+        f"* 이름: {config.name3}, {config.job3}, {config.sex3} ({config.age3}세)\n"
+        f"* 주인공({config.name})과의 관계: {config.sub_relationship}\n"
+        f"{appearance_lines}"
+        f"* 복장: {config.outfit3}\n"
+        f"* 말투: {config.talking_style3} / 성격: {config.personality3}\n"
+        f"* 스토리에서의 역할(반드시 반영할 것): {config.sub_corruption_role}\n"
+    )
+
+
+def _build_sub_guide_block():
+    """서브 캐릭터 가이드 출력 구조 블록 생성. chr_num3=0이면 빈 문자열.
+
+    introduction/crisis/ending 3단계 공통으로 사용 (에피소드 범위는 단계별 템플릿 문맥에 의존).
+    """
+    if getattr(config, 'chr_num3', 0) != 1:
+        return ""
+    return (
+        f"[서브캐릭터 가이드: {config.name3}]\n"
+        "EPISODE (해당 단계의 첫 에피소드 번호)\n"
+        f"GUIDE 1: {config.name}의 행동에 따른 {config.name3}의 반응 (주인공과의 관계: {config.sub_relationship})\n"
+        f"GUIDE 2: GUIDE 1의 서브 이벤트(GUIDE 1과 같은 시간, 장소임), {config.name3}의 변화와 역할 수행({config.sub_corruption_role})에 집중하여 작성할 것.\n"
+        "(이 형식을 반복하여 해당 단계의 마지막 에피소드까지 작성)\n"
+    )
+
+
+def _build_sub_count_text(guide_count):
+    """가이드 수 규칙 문장에 삽입할 서브 캐릭터 개수 텍스트. chr_num3=0이면 빈 문자열."""
+    if getattr(config, 'chr_num3', 0) != 1:
+        return ""
+    return f", 서브캐릭터 {guide_count}개"
+
+
+def _build_sub_review_block():
+    """review_prompt용 서브 캐릭터 리뷰 항목 블록. chr_num3=0이면 빈 문자열."""
+    if getattr(config, 'chr_num3', 0) != 1:
+        return ""
+    return (
+        "## 서브 캐릭터 (3인자) 리뷰 항목\n"
+        f"* 서브 캐릭터({config.name3}) 가이드가 정확한 개수로 생성되었는가?\n"
+        f"* 주인공({config.name})과의 관계({config.sub_relationship})가 가이드에 반영되었는가?\n"
+        f"* 스토리 역할({config.sub_corruption_role})이 에피소드 전개에 반영되었는가?\n"
+    )
+
+
 def _resolve_template(template_text, name, name2):
     """템플릿 문자열에서 {name}, {name2} 플레이스홀더 치환"""
     return template_text.replace("{name}", name).replace("{name2}", name2)
@@ -136,6 +286,10 @@ def _build_prompt(template: str, **kwargs) -> str:
     에러 발생 시 에러 메시지 출력 후 무조건 종료.
     """
     try:
+        # [Phase B] 3인자 플레이스홀더는 미전달 시 빈 문자열로 채워 2인 모드 KeyError(sys.exit)를 막는다.
+        for _sub_ph in ("sub_character_block", "sub_guide_block", "sub_count_text", "sub_review_block",
+                        "sub_info_block", "sub_update_items", "sub_json_block"):
+            kwargs.setdefault(_sub_ph, "")
         return template.format(**kwargs)
     except KeyError as e:
         msg = f"[theme_gen_auto] _build_prompt KeyError: '{e}' placeholder를 찾을 수 없습니다.\n  kwargs keys: {list(kwargs.keys())}"
@@ -214,6 +368,30 @@ def _update_theme_template_with_llm(template_setting, job, job2, prompts, select
     selected_relationship_update = selected_relationship + "\n" + rel1_update_val
     config.rel1_update_val = rel1_update_val
 
+    # [G1] 서브 캐릭터 블록 (chr_num3=1): 정보/수정 항목/JSON 필드
+    if getattr(config, 'chr_num3', 0) == 1:
+        sub_info_block = (
+            "\n## 서브 캐릭터 정보\n"
+            f"* 이름: {config.name3}\n"
+            f"* 서브 캐릭터 직업: {config.job3}\n"
+            f"* 주인공({config.name})과의 관계: {config.sub_relationship}\n"
+            f"* 스토리에서의 역할: {config.sub_corruption_role}\n"
+        )
+        sub_update_items = (
+            f"\n14. 서브 캐릭터 관계 (sub_relationship, 1개): 주인공({config.name})과의 관계 설정을 스토리에 맞게 구체화하세요. 관계의 본질은 유지할 것.\n"
+            f"{config.sub_relationship}\n"
+            f"\n15. 서브 캐릭터 스토리 역할 (sub_corruption_role, 1개): 서브 캐릭터의 스토리 역할을 스토리에 맞게 구체화하세요. 역할의 본질은 유지할 것.\n"
+            f"{config.sub_corruption_role}\n\n"
+        )
+        sub_json_block = (
+            ',\n  "sub_relationship": "수정된 서브 캐릭터 관계",\n'
+            '  "sub_corruption_role": "수정된 서브 캐릭터 스토리 역할"'
+        )
+    else:
+        sub_info_block = ""
+        sub_update_items = ""
+        sub_json_block = ""
+
     theme_update_prompt = _build_prompt(
         prompts["theme_update_prompt"],
         theme=template_name,
@@ -222,6 +400,9 @@ def _update_theme_template_with_llm(template_setting, job, job2, prompts, select
         concept=concept,
         job=job,
         job2=job2,
+        sub_info_block=sub_info_block,
+        sub_update_items=sub_update_items,
+        sub_json_block=sub_json_block,
         first_event=first_event,
         second_event=second_event,
         first_trigger=first_trigger,
@@ -305,6 +486,14 @@ def _update_theme_template_with_llm(template_setting, job, job2, prompts, select
         if "ending_actions" in updated_data and updated_data["ending_actions"]:
             updated_values["ending_actions"] = updated_data["ending_actions"]
             _log(f"[theme_update]   ending_actions: {len(updated_data['ending_actions'])}개 항목 업데이트")
+        # [G1] 서브 캐릭터 관계/역할 (chr_num3=1)
+        if getattr(config, 'chr_num3', 0) == 1:
+            if "sub_relationship" in updated_data:
+                updated_values["sub_relationship"] = updated_data["sub_relationship"]
+                _log(f"[theme_update]   sub_relationship 업데이트")
+            if "sub_corruption_role" in updated_data:
+                updated_values["sub_corruption_role"] = updated_data["sub_corruption_role"]
+                _log(f"[theme_update]   sub_corruption_role 업데이트")
 
         # theme_templates.yaml은 read-only이므로 저장하지 않음
 
@@ -372,6 +561,13 @@ def theme_gen_auto_step1(story_info: str, num_episodes: int = 10, log_fn=None) -
 
     # 선택된 템플릿의 ID별 세팅 추출
     template_setting = selected_jinshugai[0]
+
+    # [20260914] 템플릿이 3인자를 필수로 요구하면 chr_num3 강제 활성화 (예: id=2 삼각관계)
+    #   주의: 서브 캐릭터 생성은 step 3-1-1, name3 생성은 step 3-2(name_define) 이므로 여기서 선행되어야 함.
+    if template_setting.get("require_sub_character") and getattr(config, 'chr_num3', 0) != 1:
+        config.chr_num3 = 1
+        _log("[chr_num3] 템플릿 require_sub_character=True → chr_num3 강제 1 (서브 캐릭터 필수 템플릿)")
+
     id_concept = template_setting.get("concept", "")
     _log(f"[jinshugai] ID={selected_jinshugai_id}, name={template_setting.get('name', '')}, concept={id_concept}")
     _log(f"[jinshugai] target_relationships={template_setting.get('target_relationships', [])}")
@@ -580,6 +776,131 @@ def theme_gen_auto_step1(story_info: str, num_episodes: int = 10, log_fn=None) -
             break
 
     config.outfit2 = selected_outfit
+
+    # =====================================================================
+    # 3-1-1. 서브 캐릭터(3인자) 설정 (chr_num3=1)
+    #   a) 주인공과 관계가 있어야 함  b) 남/여 랜덤  c) '망가지는' 대상
+    # =====================================================================
+    if getattr(config, 'chr_num3', 0) == 1:
+        sub_data = _load_sub_character()
+
+        # 1) 주인공과의 관계 (a) — inc_flag=1(가족애)과 동시 사용 시 혈연 충돌 방지
+        sub_rel_candidates = sub_data["sub_relationships"]
+        if config.inc_flag == 1:
+            filtered_rels = [r for r in sub_rel_candidates if not r["label"].startswith("가족")]
+            if filtered_rels:
+                _log(f"[chr_num3] inc_flag=1과 동시 사용: 가족 계열 관계 제외 ({len(sub_rel_candidates)} -> {len(filtered_rels)}개)")
+                sub_rel_candidates = filtered_rels
+        # 1-1) [20260914] 템플릿 지정 관계 우선 (예: id=2 는 '연적'/라이벌 계열만 후보)
+        want_rel_labels = template_setting.get("sub_relationship_labels", [])
+        if want_rel_labels:
+            wanted_rels = [r for r in sub_rel_candidates
+                           if any(w in r["label"] for w in want_rel_labels)]
+            if wanted_rels:
+                _log(f"[chr_num3] 템플릿 sub_relationship_labels 적용 "
+                     f"({len(sub_rel_candidates)} -> {len(wanted_rels)}개): {want_rel_labels}")
+                sub_rel_candidates = wanted_rels
+            else:
+                _log(f"[chr_num3] sub_relationship_labels 매칭 실패 {want_rel_labels} — 전체에서 랜덤 선택")
+
+        selected_rel = random.choice(sub_rel_candidates)
+        config.sub_relationship = selected_rel["label"]
+
+        # 2) 성별 (b) + 나이: 관계에서 파생 (gender 고정/null 50:50, age3 = 주인공 나이 + age_delta, 18~60 clamp)
+        config.sex3, config.age3 = _derive_sub_gender_age(selected_rel, config.age)
+
+        # 3) 직업: job_sync(사회적/권력적) → 주인공 직업 동기화 / inc_flag=1 → 평범 / 그 외 job.txt + sex3 필터
+        if selected_rel.get("job_sync"):
+            config.job3 = config.job
+            _log(f"[chr_num3] job_sync: job3 = 주인공 직업 ({config.job3})")
+        elif config.inc_flag != 1:
+            job3_list = _parse_job_file(job_file)
+            if job3_list:
+                job3_list_filtered = _filter_jobs_by_gender(job3_list, config.sex3)
+                age_match = [j for j in job3_list_filtered
+                             if j['age_min'] <= config.age3 <= j['age_max']]
+                pool = age_match if age_match else job3_list_filtered
+                config.job3 = random.choice(pool)['name']
+            else:
+                config.job3 = "평범한 직업"
+        else:
+            config.job3 = "평범한 직업"
+
+        # 4) '망가지는' 역할 (c): jinshugai ID 매칭 우선 선택
+        config.sub_corruption_role = _select_sub_corruption_role(
+            sub_data["sub_corruption_roles"], config.selected_jinshugai_id, log_fn=_log)
+
+        # 4-0) [20260914] 템플릿 지정 서브 캐릭터 성향을 역할 문구에 강제 주입
+        #      (sub_corruption_role 은 "스토리에서의 역할(반드시 반영할 것)" 로 프롬프트에 들어간다)
+        sub_hint = template_setting.get("sub_character_hint", "")
+        if sub_hint:
+            config.sub_corruption_role += f" (템플릿 지정 성향: {sub_hint})"
+            _log("[chr_num3] 템플릿 sub_character_hint 를 역할 문구에 append")
+
+        # 4-1) 남자 서브 캐릭터 펨보이화 (50%): 변모는 중반/후반(전/결 단계)에 진행
+        config.sub_femboy = False
+        if config.sex3 == "남자" and random.random() < 0.5:
+            config.sub_femboy = True
+            config.sub_corruption_role += (
+                " (펨보이화: 초반에는 평범한 남성으로 유지할 것. 타락이 진행되며 중반부터 후반(결말)에 걸쳐 "
+                "점차 펨보이로 변모 — 여성스러운 외모(긴 머리, 가느다란 몸매, 부드러운 피부), "
+                "여성적인 복장, 귀여운 말투로 변해가는 과정을 반드시 묘사할 것)"
+            )
+            _log("[chr_num3] 남자 서브 캐릭터 펨보이화 50% 적중: 역할에 펨보이화(중반/후반 진행) 문구 추가")
+
+        # 5) 외모: 성별 기반 (theme/elements.yaml sub_character_appearance)
+        #    - 여성: 상세 character sheet (머리색/헤어스타일/눈/피부/얼굴/액세서리/체형)
+        #    - 남성: 상대방 캐릭터 제작 정보 (appearance3)
+        sub_pa = elements["sub_character_appearance"]
+        pa = elements.get("partner_appearance", {})
+        if config.sex3 == "여자":
+            f3 = sub_pa["female"]
+            config.hair_color3 = f3["hair_color"]
+            config.hair_style3 = f3["hair_style"]
+            config.eye_color3 = f3["eye_color"]
+            config.skin_color3 = f3["skin_color"]
+            config.face_style3 = f3["face_style"]
+            config.acc3 = f3["accessory"]
+            config.breasts_size3 = f3["breasts_size"]
+            config.hip_size3 = f3["hip_size"]
+            config.body_size3 = f3["body_size"]
+            config.appearance3 = ""   # 상세 필드 사용 (appearance3 대신)
+            # 말투/성격 풀: partner_appearance 재사용 (없으면 우리 인라인 풀로 폴백)
+            config.talking_style3 = random.choice(
+                pa.get("talking_styles") or ["평범하게 말함", "천박하게 말함", "정중하게 말함"])
+            config.personality3 = random.choice(
+                pa.get("personalities") or ["착함", "사악함(착한 척 함)", "사악함", "착함(사악한 척 함)"])
+            selected_outfit3 = default_outfit
+            for keyword, outfit in outfit_by_job.items():
+                if keyword in config.job3:
+                    selected_outfit3 = outfit
+                    break
+            config.outfit3 = selected_outfit3
+        else:
+            m3 = sub_pa["male"]
+            # sub_femboy=True: 초반 외모는 남성 유지하되 여성적 특징 시드 부여
+            if config.sub_femboy:
+                config.appearance3 = m3["appearance_femboy"]
+                config.talking_style3 = m3["talking_style_femboy"]
+            else:
+                config.appearance3 = m3["appearance"]
+                config.talking_style3 = m3["talking_style"]
+            config.personality3 = m3["personality"]
+            config.outfit3 = m3["outfit_femboy"] if config.sub_femboy else m3["outfit"]
+            # 상세 필드 클리어 (여성 전용)
+            config.hair_color3 = ""
+            config.hair_style3 = ""
+            config.eye_color3 = ""
+            config.skin_color3 = ""
+            config.face_style3 = ""
+            config.acc3 = ""
+            config.breasts_size3 = -1
+            config.hip_size3 = -1
+            config.body_size3 = -1
+
+        # 6) 이름: 3-2의 name_define()에서 name3 처리 (sex3가 먼저 설정되어야 함)
+        _log(f"[chr_num3] 서브 캐릭터 설정: sex3={config.sex3}, job3={config.job3}, age3={config.age3}, "
+             f"relationship={config.sub_relationship}, role={config.sub_corruption_role}")
 
     # =====================================================================
     # 3-2. 이름 설정
@@ -884,6 +1205,7 @@ def theme_gen_auto_step1(story_info: str, num_episodes: int = 10, log_fn=None) -
     # 주인공 외모 정보 추출
     _body_dic = getattr(config, 'body_dic', None)
     theme_prompt = _build_prompt(prompts["theme_prompt"],
+        sub_character_block=_build_sub_character_block(),
         story_info=story_info,
         name=config.name, job=config.job, sex=config.sex, age=config.age,
         name2=config.name2, job2=config.job2, sex2=config.sex2, age2=config.age2,
@@ -1253,6 +1575,10 @@ def theme_gen_auto_step2(story_info: str, step1_result: dict, num_episodes: int 
         "crisis_actions": crisis_actions,
         "ending_actions": ending_actions,
     }
+    # [G1] 서브 캐릭터 설정도 LLM 최적화 대상으로 포함 (chr_num3=1)
+    if getattr(config, 'chr_num3', 0) == 1:
+        selected_values["sub_relationship"] = config.sub_relationship
+        selected_values["sub_corruption_role"] = config.sub_corruption_role
     updated_values = _update_theme_template_with_llm(
         template_setting,
         config.job,
@@ -1278,14 +1604,24 @@ def theme_gen_auto_step2(story_info: str, step1_result: dict, num_episodes: int 
         intro_actions = updated_values.get("intro_actions", intro_actions)
         crisis_actions = updated_values.get("crisis_actions", crisis_actions)
         ending_actions = updated_values.get("ending_actions", ending_actions)
-        # config 변수도 갱신
-        config.first_event = first_event
-        config.second_event = second_event
-        config.resistance_reason = selected_resistance
-        config.corruption_reason = selected_corruption_reason
-        config.intro_actions = intro_actions
-        config.crisis_actions = crisis_actions
-        config.ending_actions = ending_actions
+        # config 변수도 갱신 (LLM이 실제로 변경한 필드만 갱신 - 2번 메뉴 사용자 수정값 덮어쓰기 방지)
+        if updated_values["first_event"] != selected_values["first_event"]:
+            config.first_event = first_event
+        if updated_values["second_event"] != selected_values["second_event"]:
+            config.second_event = second_event
+        if updated_values["selected_resistance"] != selected_values["selected_resistance"]:
+            config.resistance_reason = selected_resistance
+        if updated_values["selected_corruption_reason"] != selected_values["selected_corruption_reason"]:
+            config.corruption_reason = selected_corruption_reason
+        # [G1b] config.intro/crisis/ending_actions 동기화 제거 (어디서도 읽지 않음 — 로컬 변수만 사용)
+        # [G1] 서브 캐릭터 설정 갱신 (LLM이 실제로 변경한 필드만)
+        if getattr(config, 'chr_num3', 0) == 1:
+            if updated_values.get("sub_relationship") != selected_values.get("sub_relationship"):
+                config.sub_relationship = updated_values["sub_relationship"]
+                _log(f"[theme_update] config.sub_relationship 갱신: {config.sub_relationship}")
+            if updated_values.get("sub_corruption_role") != selected_values.get("sub_corruption_role"):
+                config.sub_corruption_role = updated_values["sub_corruption_role"]
+                _log(f"[theme_update] config.sub_corruption_role 갱신: {config.sub_corruption_role}")
         _log(f"[theme_update] 업데이트된 값들로 변수 갱신 완료")
 
     # actions_text 다시 생성
@@ -1300,6 +1636,9 @@ def theme_gen_auto_step2(story_info: str, step1_result: dict, num_episodes: int 
     # 13-1. [기-승] Introduction (EP 1~intro_end_ep)
     _log(f"[GUIDES] [기-승] EP {intro_start_ep}~{intro_end_ep} 가이드 생성 시작...")
     introduction_prompt = _build_prompt(prompts["introduction_prompt"],
+        sub_character_block=_build_sub_character_block(),
+        sub_guide_block=_build_sub_guide_block(),
+        sub_count_text=_build_sub_count_text(intro_guide_count),
         story_info=story_info,
         name=config.name, job=config.job, sex=config.sex, age=config.age,
         name2=config.name2, job2=config.job2, sex2=config.sex2, age2=config.age2,
@@ -1349,6 +1688,9 @@ def theme_gen_auto_step2(story_info: str, step1_result: dict, num_episodes: int 
     # 13-2. [전] Crisis (EP crisis_start_ep~crisis_end_ep)
     _log(f"[GUIDES] [전] EP {crisis_start_ep}~{crisis_end_ep} 가이드 생성 시작...")
     crisis_prompt = _build_prompt(prompts["crisis_guides_prompt"],
+        sub_character_block=_build_sub_character_block(),
+        sub_guide_block=_build_sub_guide_block(),
+        sub_count_text=_build_sub_count_text(crisis_guide_count),
         story_info=story_info,
         name=config.name, job=config.job, sex=config.sex, age=config.age,
         name2=config.name2, job2=config.job2, sex2=config.sex2, age2=config.age2,
@@ -1388,6 +1730,9 @@ def theme_gen_auto_step2(story_info: str, step1_result: dict, num_episodes: int 
     # 13-3. [결] Ending (EP ending_start_ep~ending_end_ep)
     _log(f"[GUIDES] [결] EP {ending_start_ep}~{ending_end_ep} 가이드 생성 시작...")
     ending_prompt = _build_prompt(prompts["ending_guides_prompt"],
+        sub_character_block=_build_sub_character_block(),
+        sub_guide_block=_build_sub_guide_block(),
+        sub_count_text=_build_sub_count_text(ending_guide_count),
         story_info=story_info,
         name=config.name, job=config.job, sex=config.sex, age=config.age,
         name2=config.name2, job2=config.job2, sex2=config.sex2, age2=config.age2,
@@ -1427,6 +1772,7 @@ def theme_gen_auto_step2(story_info: str, step1_result: dict, num_episodes: int 
     # =====================================================================
     _log("[GUIDES] Agent Review 시작...")
     review_prompt = _build_prompt(prompts["review_prompt"],
+        sub_review_block=_build_sub_review_block(),
         guides_count=guides_count, num_episodes=num_episodes,
         job=config.job, job2=config.job2,
         corruption_text=corruption_text, body_text=body_text,
@@ -1447,6 +1793,7 @@ def theme_gen_auto_step2(story_info: str, step1_result: dict, num_episodes: int 
     _log(f"[GUIDES] Agent Review 완료")
 
     corruption_guides_prompt = _build_prompt(prompts["revision_prompt"],
+        sub_guide_block=_build_sub_guide_block(),
         guides_count=guides_count, num_episodes=num_episodes, agent_feedback=agent_feedback, guides_result=guides_result, name=config.name, name2=config.name2,
         import_point=config.import_point
     )
@@ -1457,20 +1804,22 @@ def theme_gen_auto_step2(story_info: str, step1_result: dict, num_episodes: int 
             plot_messages = list(guides_messages_backup)
         guides_result, plot_messages = call_openai_for_plot(corruption_guides_prompt, messages=plot_messages, log_fn=_log)
 
-        # 결과 파싱: [이름 가이드] 헤더로 주인공/상대방 분리 후 GUIDE N: 추출
+        # 결과 파싱: [이름 가이드] 헤더로 주인공/상대방/(서브) 분리 후 GUIDE N: 추출
         protagonist_guides = []
         partner_guides = []
+        sub_guides = []
         lines = guides_result.split("\n")
-        current_section = None  # 'protagonist' or 'partner'
+        # [Phase B] chr_num3=1 이면 세 번째 섹션 헤더를 'sub'으로 라우팅
+        section_order = ["protagonist", "partner"] + (["sub"] if getattr(config, 'chr_num3', 0) == 1 else [])
+        header_count = 0
+        current_section = None  # 'protagonist' / 'partner' / 'sub'
         current_episode = None  # 현재 EPISODE 번호
         for line in lines:
             stripped = line.strip()
             header_match = re.match(r"\[(.+?) 가이드", stripped)
             if header_match:
-                if current_section is None:
-                    current_section = "protagonist"
-                else:
-                    current_section = "partner"
+                current_section = section_order[min(header_count, len(section_order) - 1)]
+                header_count += 1
                 continue
             episode_match = re.match(r"EPISODE\s*(\d+)", stripped, re.IGNORECASE)
             if episode_match:
@@ -1484,15 +1833,21 @@ def theme_gen_auto_step2(story_info: str, step1_result: dict, num_episodes: int 
                         guide_text = f"EPISODE {current_episode}: {guide_text}"
                     if current_section == "protagonist":
                         protagonist_guides.append(guide_text)
+                    elif current_section == "sub":
+                        sub_guides.append(guide_text)
                     else:
                         partner_guides.append(guide_text)
 
-        if len(protagonist_guides) >= guides_count and len(partner_guides) >= guides_count:
-            _log(f"[GUIDES] Agent Review 재출력 개수 확인 성공 (주인공={len(protagonist_guides)}, 상대방={len(partner_guides)})")
+        sub_count_needed = guides_count if getattr(config, 'chr_num3', 0) == 1 else 0
+        guides_ok = (len(protagonist_guides) >= guides_count and len(partner_guides) >= guides_count
+                     and len(sub_guides) >= sub_count_needed)
+        if guides_ok:
+            _log(f"[GUIDES] Agent Review 재출력 개수 확인 성공 (주인공={len(protagonist_guides)}, 상대방={len(partner_guides)}, 서브캐릭터={len(sub_guides)})")
             break
         else:
-            _log(f"[GUIDES] 개수 불일치 (주인공={len(protagonist_guides)}/{guides_count}, 상대방={len(partner_guides)}/{guides_count}). 재시도 ({retry+2}/{max_review_retry})")
+            _log(f"[GUIDES] 개수 불일치 (주인공={len(protagonist_guides)}/{guides_count}, 상대방={len(partner_guides)}/{guides_count}, 서브캐릭터={len(sub_guides)}/{sub_count_needed}). 재시도 ({retry+2}/{max_review_retry})")
             corruption_guides_prompt = _build_prompt(prompts["revision_retry_prompt"],
+                sub_guide_block=_build_sub_guide_block(),
                 guides_count=guides_count, num_episodes=num_episodes, agent_feedback=agent_feedback, guides_result=guides_result, name=config.name, name2=config.name2,
                 import_point=config.import_point,
                 concept=id_concept
@@ -1552,8 +1907,11 @@ def theme_gen_auto_step2(story_info: str, step1_result: dict, num_episodes: int 
 
     protagonist_guides = _adjust_guides_by_group(protagonist_guides, guides_count, num_episodes, config.guide_num, "#")
     partner_guides = _adjust_guides_by_group(partner_guides, guides_count, num_episodes, config.guide_num, "@")
+    # [Phase B] 서브 캐릭터 가이드도 EP 그룹 개수 맞춤
+    sub_guides = _adjust_guides_by_group(sub_guides, guides_count, num_episodes, config.guide_num, "*") \
+        if getattr(config, 'chr_num3', 0) == 1 else []
 
-    _log(f"[GUIDES] 최종 개수 (주인공={len(protagonist_guides)}, 상대방={len(partner_guides)})")
+    _log(f"[GUIDES] 최종 개수 (주인공={len(protagonist_guides)}, 상대방={len(partner_guides)}, 서브캐릭터={len(sub_guides)})")
 
     # =====================================================================
     # first_event, second_event가 배치된 EPISODE 번호 추출
@@ -1577,6 +1935,7 @@ def theme_gen_auto_step2(story_info: str, step1_result: dict, num_episodes: int 
 
     config.corruption_guides = protagonist_guides[:guides_count]
     config.partner_corruption_guides = partner_guides[:guides_count]
+    config.sub_corruption_guides = sub_guides[:guides_count] if getattr(config, 'chr_num3', 0) == 1 else []
 
     # =====================================================================
     # 14. config 변수 저장 정리

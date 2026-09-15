@@ -98,6 +98,8 @@ def generate_plot():
     
     config.plot_result = f"--- 생성된 플롯 ---\n(엔터를 치면 랜덤하게 다시 생성됩니다)\n\n스토리: {story_type}\n테마: {config.plot}\n"
     config.plot_result += f"주인공({config.name}, {config.age}세)과 상대방({config.name2}, {config.age2}세)의 이야기입니다.\n"
+    if getattr(config, 'chr_num3', 0) == 1:
+        config.plot_result += f"서브 캐릭터({config.name3}, {config.age3}세)는 {config.name}의 {config.sub_relationship}이며, {config.sub_corruption_role}.\n"
     config.plot_result += f"관계 설정 및 직업({config.job} / {config.job2})을 바탕으로 스토리가 전개됩니다."
     
     return config.plot_result
@@ -508,9 +510,12 @@ PHASE_MAP = {
 
 
 def _replace_names(line: str) -> str:
-    """NAME1 → [NAME], NAME2 → [NAME2] 변환 후 name_chg 호출."""
+    """NAME1 → [NAME], NAME2 → [NAME2], NAME3 → [NAME3] 변환 후 name_chg 호출."""
     line = line.replace("NAME2", "[NAME2]")
     line = line.replace("NAME1", "[NAME]")
+    if getattr(config, 'chr_num3', 0) == 1:
+        line = line.replace("NAME3", "[NAME3]")
+        return name_chg(line, config.name, config.name2, config.name3)
     return name_chg(line, config.name, config.name2)
 
 

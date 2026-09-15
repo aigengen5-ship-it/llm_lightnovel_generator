@@ -418,6 +418,7 @@ class FourPaneApp(App):
             Option("2. 플롯 생성 (Step2: 가이드)", id="generate_guides"),
             Option("3. 소설 주인공 설정 (Protagonist)", id="protagonist_setup"),
             Option("4. 상대방 설정 (Partner)", id="partner_setup"),
+            Option("4-1. 서브 캐릭터 설정 (Sub, chr_num3=1)", id="sub_setup"),
             Option("5. 에피소드 생성 (Generate Episode)", id="generate_episode"),
             Option("6. 생성 및 보완 (Generate & Refine)", id="generate_refine"),
             Option("7. 스토리 생성 (Generate Full Story)", id="generate_story"),
@@ -496,15 +497,22 @@ class FourPaneApp(App):
         self._anim_running = False  # 애니메이션 중단 플래그 초기화
 
         # CLI 인자 파싱 간결화
-        cmd_args = {"id": None, "job": None, "job2": None}
+        cmd_args = {"id": None, "job": None, "job2": None, "chr_num3": None, "inc_flag": None}
         for i, arg in enumerate(sys.argv[:-1]):
             if arg in ("-id", "--id"): cmd_args["id"] = int(sys.argv[i+1])
             elif arg in ("-job", "--job"): cmd_args["job"] = int(sys.argv[i+1])
             elif arg in ("-job2", "--job2"): cmd_args["job2"] = int(sys.argv[i+1])
+            elif arg in ("-chr_num3", "--chr_num3"): cmd_args["chr_num3"] = int(sys.argv[i+1])
+            elif arg in ("-inc_flag", "--inc_flag"): cmd_args["inc_flag"] = int(sys.argv[i+1])
 
         if cmd_args["id"] is not None: config.selected_jinshugai_id = cmd_args["id"]
         if cmd_args["job"] is not None: config.cmd_job = cmd_args["job"]
         if cmd_args["job2"] is not None: config.cmd_job2 = cmd_args["job2"]
+        # [Phase C] 3인자 스위치: 1 = 서브 캐릭터 사용, 그 외(미지정/0) = 기존 2인 모드
+        if cmd_args["chr_num3"] is not None: config.chr_num3 = cmd_args["chr_num3"]
+        # [D4] run_main.sh 가 넘기는 -inc_flag 를 텍스트 GUI 도 반영한다
+        #      (curses GUI llm_novel_gui.py 와 동일 규칙: 미지정이면 0 으로 확정)
+        config.inc_flag = cmd_args["inc_flag"] if cmd_args["inc_flag"] is not None else 0
 
         self._worker_init()
 
@@ -583,6 +591,10 @@ class FourPaneApp(App):
                     restore_msg += f"Hash: {saved_hash}\n"
                     restore_msg += f"주인공: {progress_state.get('name', 'N/A')} ({progress_state.get('age', 'N/A')}세, {progress_state.get('job', 'N/A')})\n"
                     restore_msg += f"상대방: {progress_state.get('name2', 'N/A')} ({progress_state.get('age2', 'N/A')}세, {progress_state.get('job2', 'N/A')})\n"
+                    if progress_state.get('name3'):
+                        restore_msg += (f"서브캐릭터: {progress_state.get('name3', 'N/A')} "
+                                        f"({progress_state.get('sex3', 'N/A')}, {progress_state.get('age3', 'N/A')}세, "
+                                        f"{progress_state.get('job3', 'N/A')}) - {progress_state.get('sub_relationship', 'N/A')}\n")
                     restore_msg += f"에피소드: {loaded_count}/{len(episode_contents)}개 로드됨\n\n"
 
                     character_setup.random_setup_all()
@@ -616,6 +628,7 @@ class FourPaneApp(App):
             "generate_guides": "[Step2] 가이드 생성 LLM 호출\n기-승-전-결 가이드 생성\n+ Agent Review (약 3-5분)",
             "protagonist_setup": "주인공 캐릭터 시트를 표시합니다.",
             "partner_setup": "상대방(파트너) 캐릭터 시트를 표시합니다.",
+            "sub_setup": "서브 캐릭터(3인자) 시트를 표시합니다.\nchr_num3=1 일 때만 유효\n+ 기동: ./run_main.sh -id 1 -chr_num3 1",
             "generate_episode": "progression 재생성 후 에피소드를 생성합니다.",
             "generate_refine": "에피소드 요약을 생성하고 보완합니다.",
             "generate_story": "전체 스토리를 생성하여 저장합니다.",
@@ -656,6 +669,7 @@ class FourPaneApp(App):
             "generate_guides": self._worker_generate_plot_step2,
             "protagonist_setup": self._worker_protagonist_setup,
             "partner_setup": self._worker_partner_setup,
+            "sub_setup": self._worker_sub_setup,
             "generate_episode": self._worker_generate_episode,
             "generate_refine": self._worker_generate_refine,
             "generate_story": self._worker_generate_story,
@@ -689,7 +703,8 @@ class FourPaneApp(App):
             result_msg += f"[인자 값]\n"
             result_msg += f"  selected_jinshugai_id: {config.selected_jinshugai_id}\n"
             result_msg += f"  cmd_job: {getattr(config, 'cmd_job', None)}\n"
-            result_msg += f"  cmd_job2: {getattr(config, 'cmd_job2', None)}\n\n"
+            result_msg += f"  cmd_job2: {getattr(config, 'cmd_job2', None)}\n"
+            result_msg += f"  chr_num3: {getattr(config, 'chr_num3', 0)} ({'3인 모드 (서브 캐릭터 사용)' if getattr(config, 'chr_num3', 0) == 1 else '2인 모드 (서브 캐릭터 미사용)'}\n\n"
             result_msg += f"- progress/ 파일 {cleared}개 삭제됨\n"
             result_msg += f"- 설정값 리셋됨\n"
             result_msg += f"- 에피소드 내용 초기화됨\n\n"
@@ -720,7 +735,12 @@ class FourPaneApp(App):
             )
             self._step1_result = step1_result
 
-            debug_msg = f"[Step1 완료]\nID: {config.selected_jinshugai_id or '랜덤'}\n주인공: {config.name} ({config.age}세, {config.job})\n상대방: {config.name2} ({config.age2}세, {config.job2})\n관계: {config.relationship}\n첫 이벤트: {config.first_event}\n두 번째 이벤트: {config.second_event}\n저항 이유: {config.resistance_reason}\n타락 이유: {config.corruption_reason}\n\n[테마 생성 완료]\n"
+            debug_msg = f"[Step1 완료]\nID: {config.selected_jinshugai_id or '랜덤'}\n주인공: {config.name} ({config.age}세, {config.job})\n상대방: {config.name2} ({config.age2}세, {config.job2})\n"
+            # [Phase C] 3인 모드면 서브 캐릭터 설정 표시
+            if getattr(config, 'chr_num3', 0) == 1:
+                debug_msg += (f"서브캐릭터: {config.name3} ({config.sex3}, {config.age3}세, {config.job3}) "
+                              f"- {config.sub_relationship} / {config.sub_corruption_role}\n")
+            debug_msg += f"관계: {config.relationship}\n첫 이벤트: {config.first_event}\n두 번째 이벤트: {config.second_event}\n저항 이유: {config.resistance_reason}\n타락 이유: {config.corruption_reason}\n\n[테마 생성 완료]\n"
             final_txt = f"Hash: {config.plot_hash}\n\n{debug_msg}"
             
             # 완료 시 _finish_worker 한 줄로 깔끔하게 처리
@@ -753,7 +773,10 @@ class FourPaneApp(App):
             llm_novel_gui_func.complete_theme_auto()
             prog_msg = self._generate_and_parse_progression()
 
-            debug_msg = f"[Step2 완료]\n가이드 수: {len(config.corruption_guides)}개\n상대방 가이드 수: {len(config.partner_corruption_guides)}개\n\n[Progress] Hash: {config.plot_hash} | 완료 저장됨\n\n{config.plot_result}\n\n{prog_msg}"
+            debug_msg = f"[Step2 완료]\n가이드 수: {len(config.corruption_guides)}개\n상대방 가이드 수: {len(config.partner_corruption_guides)}개\n"
+            if getattr(config, 'chr_num3', 0) == 1:
+                debug_msg += f"서브캐릭터 가이드 수: {len(getattr(config, 'sub_corruption_guides', []))}개\n"
+            debug_msg += f"\n[Progress] Hash: {config.plot_hash} | 완료 저장됨\n\n{config.plot_result}\n\n{prog_msg}"
             self.call_from_thread(self._finish_worker, editor_text=debug_msg, status_msg="Step2 완료!", readonly=True)
         except Exception as e:
             self.call_from_thread(self._finish_worker, editor_text=f"Step2 중 오류 발생:\n{e}", status_msg="Step2 오류 발생")
@@ -774,6 +797,22 @@ class FourPaneApp(App):
             self.call_from_thread(self._finish_worker, editor_text=sheet, status_msg="상대방 설정 표시 중", readonly=True)
         except Exception as e:
             self.call_from_thread(self._finish_worker, editor_text=f"상대방 시트 오류: {e}", status_msg="오류 발생")
+
+    @work(thread=True, exclusive=True, group="llm_work")
+    def _worker_sub_setup(self) -> None:
+        """4-1번 메뉴: 서브 캐릭터(3인자) 시트 표시 (chr_num3=1 일 때만 유효)"""
+        try:
+            if getattr(config, 'chr_num3', 0) != 1:
+                self.call_from_thread(self._finish_worker,
+                    editor_text=("2인 모드입니다 (chr_num3=0).\n\n"
+                                 "서브 캐릭터를 사용하려면 기동 시 -chr_num3 인자를 지정하세요.\n"
+                                 "  예: ./run_main.sh -id 1 -chr_num3 1"),
+                    status_msg="2인 모드 (서브 캐릭터 미사용)", readonly=True)
+                return
+            sheet = character_setup.sub_sheet()
+            self.call_from_thread(self._finish_worker, editor_text=sheet, status_msg="서브 캐릭터 설정 표시 중", readonly=True)
+        except Exception as e:
+            self.call_from_thread(self._finish_worker, editor_text=f"서브 캐릭터 시트 오류: {e}", status_msg="오류 발생")
 
     @work(thread=True, exclusive=True, group="llm_work")
     def _worker_generate_episode(self) -> None:

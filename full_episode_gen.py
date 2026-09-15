@@ -38,6 +38,8 @@ def _load_prompts():
     return parsed
 
 def _build_prompt(template, **kwargs):
+    # [Phase B] 서브 캐릭터 플레이스홀더는 미전달 시 빈 문자열 (2인 모드 KeyError 방지)
+    kwargs.setdefault("sub_sheet_block", "")
     return template.format(**kwargs)
 
 VARS = _load_variables()
@@ -93,11 +95,28 @@ def _detect_intimacy_level(ep_corruption_guides_map, ep_num):
 def _get_pov_template(sec_key, name, name2):
     """시점 템플릿 반환 (selected_jinshugai_id에 따라 분기)"""
     jinshugai_id = getattr(config, 'selected_jinshugai_id', None)
-    if jinshugai_id == 1:
+    # [20260914] id=2(삼각관계 러브코메디)도 상대방(하렘물 남주) 1인칭 시점을 사용
+    if jinshugai_id in (1, 2):
         pov_tpl = VARS["pov_templates_jinshugai_1"].get(sec_key, "")
     else:
         pov_tpl = VARS["pov_templates"].get(sec_key, "")
     return pov_tpl.format(name=name, name2=name2)
+
+
+def _get_random_gyeol_pov(name, name2, name3):
+    """'결' 화자 랜덤 선택 (주인공/상대방/서브 캐릭터) — chr_num3=1 시 사용
+
+    3개 시점 템플릿 중 랜덤으로 1개 선택:
+      - 주인공({name}) 1인칭: pov_templates.gyeol
+      - 상대방({name2}) 1인칭: pov_templates_jinshugai_1.gyeol
+      - 서브 캐릭터({name3}) 1인칭: pov_gyeol_sub
+    """
+    candidates = [
+        VARS["pov_templates"]["gyeol"].format(name=name, name2=name2),
+        VARS["pov_templates_jinshugai_1"]["gyeol"].format(name=name, name2=name2),
+        VARS["pov_gyeol_sub"].format(name=name, name2=name2, name3=name3),
+    ]
+    return rand.choice(candidates)
 
 def _get_progress_mood(progress_ratio):
     """진행도에 따른 주인공 감정선 반환"""
@@ -338,9 +357,13 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
         log("[DEBUG] partner_sheet() 호출 시작")
         default_partner_sheet = character_setup.partner_sheet()
         log(f"[DEBUG] default_partner_sheet 길이: {len(default_partner_sheet)}")
+        # [Phase B] 서브 캐릭터 시트 (chr_num3=1)
+        default_sub_sheet = character_setup.sub_sheet() if getattr(config, 'chr_num3', 0) == 1 else ""
+        log(f"[DEBUG] default_sub_sheet 길이: {len(default_sub_sheet)}")
 
         proto_sheets = getattr(config, 'episode_protagonist_sheets', None)
         part_sheets = getattr(config, 'episode_partner_sheets', None)
+        sub_sheets = getattr(config, 'episode_sub_sheets', None)
         log(f"[DEBUG] episode_protagonist_sheets: {len(proto_sheets) if proto_sheets else 'None'}개")
         log(f"[DEBUG] episode_partner_sheets: {len(part_sheets) if part_sheets else 'None'}개")
 
@@ -473,6 +496,12 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
                 partner_sheet = default_partner_sheet
                 log(f"[EP{current_ep}] [DEBUG] fallback 기본 시트 사용 (episode_protagonist_sheets[{ep_idx}] 없음)")
 
+            # [Phase B] 서브 캐릭터 시트: EP별 갱신 시트 우선, 없으면 기본 시트 (chr_num3=0이면 "")
+            if sub_sheets and ep_idx < len(sub_sheets) and sub_sheets[ep_idx]:
+                sub_sheet = sub_sheets[ep_idx]
+            else:
+                sub_sheet = default_sub_sheet
+
             rag_dialog_lines = []
             rag_dialog_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "rag_dialog.txt")
             config.rag_dialog = "\n".join(rag_dialog_lines) if rag_dialog_lines else "(대사 목록 없음)"
@@ -528,7 +557,11 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
             pov_ki = _get_pov_template("ki", config.name, config.name2)
             pov_seung = _get_pov_template("seung", config.name, config.name2)
             pov_jeon = _get_pov_template("jeon", config.name, config.name2)
-            pov_gyeol = _get_pov_template("gyeol", config.name, config.name2)
+            # '결' 화자: chr_num3=1 시 주인공/상대방/서브 캐릭터 중 랜덤
+            if getattr(config, 'chr_num3', 0) == 1:
+                pov_gyeol = _get_random_gyeol_pov(config.name, config.name2, config.name3)
+            else:
+                pov_gyeol = _get_pov_template("gyeol", config.name, config.name2)
             pov_map = {"기": pov_ki, "승": pov_seung, "전": pov_jeon, "결": pov_gyeol}
 
             prompts = _load_prompts()
@@ -541,11 +574,14 @@ def full_episode_gen(ep_num=0, callback=None, log_file_name="debug_api_episode.l
                     guide_parts.append(f"  - 주인공 가이드: {', '.join([f'#{g}' for g in ep_guides['protagonist']])}")
                 if ep_guides.get("partner", []):
                     guide_parts.append(f"  - 상대방 가이드: {', '.join([f'#{g}' for g in ep_guides['partner']])}")
-                episode_guide = "\n## 에피소드 가이드, 가장 중요함:  아래 주인공, 상대방 가이드를 잘 이해하고 기승전결 작성에 무조건 반영하세요!:\n" + "\n".join(guide_parts)
+                if ep_guides.get("sub", []):
+                    guide_parts.append(f"  - 서브캐릭터 가이드: {', '.join([f'#{g}' for g in ep_guides['sub']])}")
+                episode_guide = "\n## 에피소드 가이드, 가장 중요함:  아래 주인공, 상대방(, 서브캐릭터) 가이드를 잘 이해하고 기승전결 작성에 무조건 반영하세요!:\n" + "\n".join(guide_parts)
             user_prompt = _build_prompt(
                 prompts["part1_ki"],
                 prompt_ending=prompt_ending, protagonist_sheet=protagonist_sheet,
                 partner_sheet=partner_sheet, request_extended=request_extended,
+                sub_sheet_block=(f"\n### 서브 캐릭터 {config.name3} 캐릭터 시트:\n{sub_sheet}\n" if sub_sheet else ""),
                 prev_episode_ref=prev_episode_ref, name=config.name, name2=config.name2,
                 header=ep_sections.get('header', ''), ki_prompt_extra=ki_prompt_extra,
                 pov_ki=pov_ki, sex_hint=sex_hint, body_change_hint=body_change_hint,
